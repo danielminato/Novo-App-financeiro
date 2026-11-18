@@ -63,7 +63,8 @@ Painel · Vendas · Compras (com leitura de faturas por IA) · Aprendizado · Re
       operacionais) e Apuração de IVA (`fin_iva_taxas`, `fin_iva_meses`: bases por taxa e valor
       do contabilista; sem bases = estimativa com o IVA das vendas de `fin_config`; crédito = IVA
       das compras pela data da compra; provisão por trimestre). Out/2026 e o ano 2026 de IVA
-      conferem com o sistema atual. Falta o guia "Listas I e II" (IVA por produto).
+      conferem com o sistema atual. O guia "Listas I e II" (IVA por produto) fica de fora
+      por decisão do Daniel (18/11/2026): ele tem a lista e pede quando precisar.
 - [ ] Conciliação bancária
 - [ ] Validação mês a mês contra o sistema atual
 - [ ] Integração na app de estoque
