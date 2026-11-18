@@ -58,7 +58,12 @@ Painel · Vendas · Compras (com leitura de faturas por IA) · Aprendizado · Re
       metas (receita/despesas/resultado), regras de classificação (`fin_regras`, para a IA),
       utilizadores (só consulta: geridos na app de estoque). O adm vê em modo consulta.
       Migração `2026-11-18_fin_painel_admin.sql` aplicada; metas de 2026 copiadas.
-- [ ] Relatórios
+- [x] Relatórios (18/11/2026) — Vendas (+ média por dia da semana, extra), Fluxo de Caixa,
+      DRE (grupos pela categoria: CMV / Impostos / Financeiras / Distribuição / resto =
+      operacionais) e Apuração de IVA (`fin_iva_taxas`, `fin_iva_meses`: bases por taxa e valor
+      do contabilista; sem bases = estimativa com o IVA das vendas de `fin_config`; crédito = IVA
+      das compras pela data da compra; provisão por trimestre). Out/2026 e o ano 2026 de IVA
+      conferem com o sistema atual. Falta o guia "Listas I e II" (IVA por produto).
 - [ ] Conciliação bancária
 - [ ] Validação mês a mês contra o sistema atual
 - [ ] Integração na app de estoque

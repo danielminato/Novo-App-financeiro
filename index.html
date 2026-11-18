@@ -251,6 +251,27 @@
   </div>
 </div>
 
+<!-- Janela: apuração de IVA de um mês -->
+<div class="modal-bg" id="modalIva">
+  <div class="modal">
+    <h3 id="iTitulo" style="margin-bottom:6px;">Apuração de IVA</h3>
+    <p class="nota" style="margin:0 0 12px;">Informe a base tributável (vendas <b>sem IVA</b>) de cada taxa, tirada do fecho do sistema de faturação. A app calcula o IVA das vendas e compara com o valor do contabilista. Deixe tudo em branco para voltar à estimativa.</p>
+    <div class="grupo-tit">Base tributável por taxa (€)</div>
+    <div class="grade" id="iBases"></div>
+    <div class="calc" id="iCalc"></div>
+    <div class="grupo-tit">Conferência do contabilista</div>
+    <div class="grade">
+      <label class="field">IVA das vendas informado pelo contabilista (€)<input type="number" step="0.01" id="iContab" oninput="ivaCalcModal()"></label>
+    </div>
+    <label class="field">Observações<textarea id="iObs"></textarea></label>
+    <div class="erro" id="iErro"></div>
+    <div class="modal-acoes">
+      <button class="btn sec" onclick="fecharModal('modalIva')">Cancelar</button>
+      <button class="btn" onclick="ivaGuardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -371,7 +392,7 @@ const VISTAS = [
   { id: 'aprendizado', nome: 'Aprendizado',
     desc: 'Regras por fornecedor para a IA ler melhor as faturas: palavras-chave, categoria/subcategoria/forma por defeito e uma dica de leitura.' },
   { id: 'relatorios', nome: 'Relatórios',
-    desc: 'Relatório de vendas, fluxo de caixa, DRE e apuração de IVA, por mês.' },
+    desc: 'Relatórios gerenciais a partir das Vendas e das Compras registadas.' },
   { id: 'conciliacao', nome: 'Conciliação',
     desc: 'Importar o extrato bancário (.xlsx) e cruzar automaticamente com as compras: conciliadas, pendentes e ignoradas.' },
   { id: 'admin', nome: 'Administração',
@@ -386,7 +407,7 @@ function desenharMenu(ativa){
     `<button class="${v.id === ativa ? 'active' : ''}" onclick="irPara('${v.id}')">${v.nome}</button>`).join('');
 }
 
-const RENDER_VISTA = { painel: renderPainel, vendas: renderVendas, compras: renderCompras, admin: renderAdmin };
+const RENDER_VISTA = { painel: renderPainel, vendas: renderVendas, compras: renderCompras, relatorios: renderRelatorios, admin: renderAdmin };
 
 function irPara(id){
   const v = VISTAS.find(x => x.id === id) || VISTAS[0];
@@ -869,6 +890,240 @@ async function renderPainel(){
     data: { labels: vm.map(v => +v.data.slice(8, 10)), datasets: [{ label: 'Faturamento', data: vm.map(v => r2(calcVenda(v).fat)), borderColor: VERDE, backgroundColor: 'rgba(46,125,79,.12)', fill: true, tension: .3, pointRadius: 2 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => 'Dia ' + c[0].label + ' (' + diaSemana(vm[c[0].dataIndex].data) + ')', label: c => eur(c.parsed.y) } } } },
   }));
+}
+
+// ===================================================================================
+//  RELATÓRIOS — Vendas · Fluxo de Caixa · DRE · Apuração de IVA
+//   (mesmas regras do Painel: despesas pela data da compra, valores com IVA)
+// ===================================================================================
+let abaRel = 'vendas', anoIva = Number(hojeISO().slice(0, 4)), ivaCtx = null;
+const ABAS_REL = [['vendas', 'Vendas'], ['fluxo', 'Fluxo de Caixa'], ['dre', 'DRE'], ['iva', 'Apuração de IVA']];
+const pctDe = (v, total) => total ? pct1(v / total * 100) + '%' : '—';
+
+async function renderRelatorios(){
+  const corpo = await REL_ABAS[abaRel]();
+  document.getElementById('conteudo').innerHTML = `
+    <div class="subnav">${ABAS_REL.map(([id, nome]) => `<button class="${id === abaRel ? 'active' : ''}" onclick="abaRel='${id}';renderRelatorios()">${nome}</button>`).join('')}</div>
+    ${corpo}`;
+}
+async function dadosDoMes(){
+  const [ini, fim] = limitesMes(mesAtual);
+  const [vendas, compras] = await Promise.all([
+    apiGet(`fin_vendas_dia?select=*&data=gte.${ini}&data=lt.${fim}&order=data`),
+    apiGet(`fin_compras?select=data,valor,valor_iva,categoria_id&data=gte.${ini}&data=lt.${fim}`),
+  ]);
+  const fat = vendas.reduce((s, v) => s + calcVenda(v).fat, 0);
+  const porCat = {};
+  compras.forEach(c => { const k = nomeCategoria(c.categoria_id) || 'Sem categoria'; porCat[k] = (porCat[k] || 0) + num(c.valor); });
+  const despesas = compras.reduce((s, c) => s + num(c.valor), 0);
+  return { vendas, compras, fat: r2(fat), porCat, despesas: r2(despesas), gorjetas: vendas.reduce((s, v) => s + num(v.gorjetas), 0) };
+}
+const barraMesRel = () => `<div class="barra">${seletorMes('renderRelatorios')}</div>`;
+
+const REL_ABAS = {
+  vendas: async () => {
+    const d = await dadosDoMes();
+    const soma = k => d.vendas.reduce((s, v) => s + num(v[k]), 0);
+    const canais = [['Balcão (sistema)', soma('sistema')], ['M20', soma('m20')], ['Uber', soma('uber')], ['Bolt', soma('bolt')], ['Glovo', soma('glovo')]].filter(c => c[1] > 0);
+    const dias = d.vendas.filter(v => calcVenda(v).fat > 0);
+    const melhor = dias.reduce((m, v) => !m || calcVenda(v).fat > calcVenda(m).fat ? v : m, null);
+    // por dia da semana (média), para ver os dias fortes e fracos
+    const sem = Array.from({ length: 7 }, () => ({ n: 0, t: 0 }));
+    dias.forEach(v => { const k = new Date(v.data + 'T12:00:00').getDay(); sem[k].n++; sem[k].t += calcVenda(v).fat; });
+    const ordemSem = [1, 2, 3, 4, 5, 6, 0];
+    return `${barraMesRel()}
+      <p class="nota" style="margin:-8px 0 12px;"><strong>${nomeMes(mesAtual)}</strong></p>
+      <div class="kpis">
+        <div class="kpi"><div class="rot">Faturamento</div><div class="val">${eur(d.fat)}</div></div>
+        <div class="kpi"><div class="rot">Média diária</div><div class="val">${eur(dias.length ? d.fat / dias.length : 0)}</div><div class="sub">${dias.length} dia(s) com venda</div></div>
+        <div class="kpi"><div class="rot">Gorjetas</div><div class="val">${eur(d.gorjetas)}</div><div class="sub">da equipa, fora do faturamento</div></div>
+      </div>
+      <div class="graficos">
+        <div class="grafico"><h3>Faturamento por canal</h3>
+          <table class="t"><thead><tr><th class="e">Canal</th><th>Valor</th><th>% participação</th></tr></thead>
+          <tbody>${canais.map(c => `<tr><td class="e">${c[0]}</td><td>${eur(c[1])}</td><td>${pctDe(c[1], d.fat)}</td></tr>`).join('') || '<tr><td colspan="3" class="vazio">Sem vendas.</td></tr>'}</tbody>
+          ${canais.length ? `<tfoot><tr><td class="e">Total</td><td>${eur(d.fat)}</td><td>100%</td></tr></tfoot>` : ''}</table>
+          ${melhor ? `<p class="nota" style="margin:12px 0 0;">🏆 Melhor dia: <b>${dataCurta(melhor.data)}/${melhor.data.slice(0, 4)}</b> (${diaSemana(melhor.data)}) com <b>${eur(calcVenda(melhor).fat)}</b>.</p>` : ''}
+        </div>
+        <div class="grafico"><h3>Média por dia da semana</h3>
+          <table class="t"><thead><tr><th class="e">Dia</th><th>Dias</th><th>Média</th><th>Total</th></tr></thead>
+          <tbody>${ordemSem.map(k => `<tr><td class="e">${DIAS_SEM[k]}</td><td>${sem[k].n}</td><td>${sem[k].n ? eur(sem[k].t / sem[k].n) : '—'}</td><td>${fmt(sem[k].t)}</td></tr>`).join('')}</tbody></table>
+        </div>
+      </div>`;
+  },
+
+  fluxo: async () => {
+    const d = await dadosDoMes();
+    const saidas = Object.entries(d.porCat).sort((a, b) => b[1] - a[1]);
+    const saldo = d.fat - d.despesas;
+    return `${barraMesRel()}
+      <p class="nota" style="margin:-8px 0 12px;"><strong>${nomeMes(mesAtual)}</strong> · visão de caixa (valores totais pagos/recebidos)</p>
+      <div class="tabela-wrap" style="max-width:640px;"><table class="t">
+        <thead><tr><th class="e">Entradas</th><th></th></tr></thead>
+        <tbody><tr><td class="e">Vendas (faturamento)</td><td>${eur(d.fat)}</td></tr></tbody>
+        <tfoot><tr><td class="e">Total de entradas</td><td>${eur(d.fat)}</td></tr></tfoot>
+      </table></div>
+      <div class="tabela-wrap" style="max-width:640px;margin-top:14px;"><table class="t">
+        <thead><tr><th class="e">Saídas</th><th></th></tr></thead>
+        <tbody>${saidas.map(([k, v]) => `<tr><td class="e">${esc(k)}</td><td>${eur(v)}</td></tr>`).join('') || '<tr><td colspan="2" class="vazio">Sem compras.</td></tr>'}</tbody>
+        <tfoot><tr><td class="e">Total de saídas</td><td>${eur(d.despesas)}</td></tr></tfoot>
+      </table></div>
+      <div class="kpis" style="max-width:640px;margin-top:14px;">
+        <div class="kpi"><div class="rot">Saldo do período</div><div class="val ${saldo < 0 ? 'neg' : 'pos'}">${eur(saldo)}</div>
+          <div class="sub">Gorjetas recebidas no mês (da equipa, fora do resultado): ${eur(d.gorjetas)}</div></div>
+      </div>`;
+  },
+
+  dre: async () => {
+    const d = await dadosDoMes();
+    const grupo = nome => /^CMV/i.test(nome) ? 'cmv' : /impost/i.test(nome) ? 'impostos' : /financeir/i.test(nome) ? 'financeiras' : /distribui/i.test(nome) ? 'distribuicao' : 'operacional';
+    const g = { cmv: 0, impostos: 0, financeiras: 0, distribuicao: 0, operacional: 0 }, oper = [];
+    Object.entries(d.porCat).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => { const x = grupo(k); g[x] += v; if(x === 'operacional') oper.push([k, v]); });
+    const R = d.fat, bruto = R - g.cmv, opRes = bruto - g.operacional, antes = opRes - g.impostos - g.financeiras, liquido = antes - g.distribuicao;
+    const linha = (rot, v, cls) => `<tr class="${cls || ''}"><td class="e">${rot}</td><td class="${v < 0 ? 'dif-mal' : ''}">${eur(v)}</td><td>${pctDe(v, R)}</td></tr>`;
+    const total = (rot, v) => `<tr><td class="e"><b>${rot}</b></td><td class="${v < 0 ? 'dif-mal' : ''}"><b>${eur(v)}</b></td><td><b>${pctDe(v, R)}</b></td></tr>`;
+    return `${barraMesRel()}
+      <p class="nota" style="margin:-8px 0 12px;"><strong>${nomeMes(mesAtual)}</strong> · visão gerencial (regime de caixa, valores com IVA)</p>
+      <div class="tabela-wrap" style="max-width:700px;"><table class="t">
+        <thead><tr><th class="e">Conta</th><th>Valor</th><th>% receita</th></tr></thead>
+        <tbody>
+          ${total('Receita de vendas', R)}
+          ${linha('(−) CMV — Custo de Mercadoria Vendida', g.cmv)}
+          ${total('= Lucro Bruto', bruto)}
+          <tr><td class="e" colspan="3">(−) Despesas operacionais</td></tr>
+          ${oper.map(([k, v]) => linha('&nbsp;&nbsp;&nbsp;' + esc(k), v)).join('')}
+          ${linha('&nbsp;&nbsp;&nbsp;Total operacionais', g.operacional)}
+          ${total('= Resultado Operacional', opRes)}
+          ${linha('(−) Impostos e taxas', g.impostos)}
+          ${linha('(−) Despesas financeiras', g.financeiras)}
+          ${total('= Resultado antes de distribuição', antes)}
+          ${linha('(−) Distribuição de lucros / pró-labore', g.distribuicao)}
+          ${total('= Resultado Líquido', liquido)}
+        </tbody>
+      </table></div>
+      <p class="nota" style="max-width:700px;">Classificação automática pela categoria da compra. Ajuste as categorias das compras (e em Administração › Categorias) para refinar o DRE. O IVA tem relatório próprio.</p>`;
+  },
+
+  iva: async () => {
+    const ini = `${anoIva}-01-01`, fim = `${anoIva + 1}-01-01`;
+    const [cfg, taxas, meses, vendas, compras] = await Promise.all([
+      apiGet('fin_config?select=*&chave=eq.iva_vendas_percentual').catch(() => []),
+      apiGet('fin_iva_taxas?select=*&order=ordem,id'),
+      apiGet(`fin_iva_meses?select=*&ano=eq.${anoIva}`),
+      apiGet(`fin_vendas_dia?select=data,sistema,m20,uber,bolt,glovo&data=gte.${ini}&data=lt.${fim}`),
+      apiGet(`fin_compras?select=data,valor_iva&data=gte.${ini}&data=lt.${fim}`),
+    ]);
+    const pVendas = cfg[0] ? num(cfg[0].valor) : 13;
+    const linhas = [];
+    for(let m = 1; m <= 12; m++){
+      const mm = `${anoIva}-${String(m).padStart(2, '0')}`;
+      const fat = vendas.filter(v => v.data.startsWith(mm)).reduce((s, v) => s + calcVenda(v).fat, 0);
+      const cred = compras.filter(c => c.data.startsWith(mm)).reduce((s, c) => s + num(c.valor_iva), 0);
+      const reg = meses.find(x => x.mes === m) || null;
+      const bases = Object.entries((reg && reg.bases) || {}).filter(([, v]) => num(v));
+      const informado = bases.length > 0;
+      const base = informado ? bases.reduce((s, [, v]) => s + num(v), 0) : fat;
+      const deb = informado
+        ? bases.reduce((s, [id, v]) => s + num(v) * num((taxas.find(t => String(t.id) === id) || {}).percentual) / 100, 0)
+        : fat * pVendas / (100 + pVendas);
+      const contab = reg && reg.contabilista !== null && reg.contabilista !== undefined ? num(reg.contabilista) : null;
+      linhas.push({ m, reg, informado, fat: r2(fat), base: r2(base), deb: r2(deb), cred: r2(cred), pagar: r2(deb - cred), contab, dif: contab === null ? null : r2(deb - contab) });
+    }
+    ivaCtx = { taxas, linhas, pVendas };
+    const tot = k => linhas.reduce((s, l) => s + l[k], 0);
+    const tri = [0, 1, 2, 3].map(q => { const ls = linhas.slice(q * 3, q * 3 + 3); return { deb: ls.reduce((s, l) => s + l.deb, 0), cred: ls.reduce((s, l) => s + l.cred, 0) }; });
+    const ro = !souMaster();
+    return `
+      <div class="barra">
+        <label class="field">Ano<input type="number" value="${anoIva}" style="width:100px" onchange="anoIva=Math.round(num(this.value))||anoIva;renderRelatorios()"></label>
+      </div>
+      <p class="nota" style="max-width:860px;margin-top:-6px;">
+        <b>IVA das vendas (débito)</b> = soma, por taxa, de base × taxa (base informada do sistema de faturação no fim do mês).
+        <b>Crédito</b> = IVA das compras do mês. <b>A pagar</b> = débito − crédito. <b>Contabilista</b> é o valor que ele informou, para conferência.
+        Meses sem base informada aparecem como <span class="tag">estimativa</span> (faturamento com ${fmt(pVendas)}% de IVA incluído).</p>
+      <div class="tabela-wrap"><table class="t">
+        <thead><tr><th class="e">Mês</th><th>Base tributável</th><th>IVA vendas</th><th>Crédito</th><th>A pagar</th><th>Contabilista</th><th>Diferença</th><th></th></tr></thead>
+        <tbody>${linhas.map(l => `<tr>
+          <td class="e">${MESES_NOME[l.m - 1]} ${l.informado ? '<span class="tag" style="background:var(--verde);color:#fff;">informado</span>' : '<span class="tag">estimativa</span>'}${l.reg && l.reg.observacoes ? ` <span title="${esc(l.reg.observacoes)}">📝</span>` : ''}</td>
+          <td>${fmt(l.base)}</td><td>${fmt(l.deb)}</td><td>${fmt(l.cred)}</td><td><b>${fmt(l.pagar)}</b></td>
+          <td>${l.contab === null ? '—' : fmt(l.contab)}</td>
+          <td class="${l.dif === null ? '' : Math.abs(l.dif) < 0.01 ? 'dif-ok' : 'dif-mal'}">${l.dif === null ? '—' : fmt(l.dif)}</td>
+          <td class="acoes e"><button onclick="ivaAbrir(${l.m})">${l.informado || l.contab !== null ? 'editar' : 'informar'}</button></td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr><td class="e">Total ${anoIva}</td><td>${fmt(tot('base'))}</td><td>${fmt(tot('deb'))}</td><td>${fmt(tot('cred'))}</td><td>${eur(tot('pagar'))}</td><td colspan="3"></td></tr></tfoot>
+      </table></div>
+      <h3 style="font-size:18px;color:var(--verde-escuro);margin:22px 0 4px;">Provisão por trimestre — reserve todo mês</h3>
+      <p class="nota" style="margin:0 0 10px;">O IVA é pago por trimestre. Separe o valor todo mês para não levar susto no fecho de cada trimestre.</p>
+      <div class="kpis">${tri.map((t, i) => `<div class="kpi"><div class="rot">${i + 1}º trimestre</div><div class="val ${t.deb - t.cred < 0 ? 'neg' : ''}">${eur(t.deb - t.cred)}</div><div class="sub">débito ${fmt(t.deb)} · crédito ${fmt(t.cred)}</div></div>`).join('')}</div>
+      <details class="card" style="margin-top:8px;">
+        <summary style="cursor:pointer;font-weight:600;color:var(--verde-escuro);">Biblioteca de taxas de IVA</summary>
+        <p class="nota">As taxas oficiais usadas no cálculo do IVA das vendas. Fonte oficial: Código do IVA (CIVA), art. 18.º — confirme sempre a versão em vigor no Portal das Finanças. ${ro ? 'Só o administrador master altera.' : 'Edite aqui se o governo mudar alguma.'}</p>
+        <div class="tabela-wrap"><table class="t">
+          <thead><tr><th class="e">Taxa</th><th>%</th><th class="e">Referência legal</th><th>Ordem</th><th class="e">Estado</th><th></th></tr></thead>
+          <tbody>${taxas.map(t => `<tr class="${t.ativo ? '' : 'inativo'}">
+            <td class="e">${esc(t.nome)}</td>
+            <td>${ro ? fmt(t.percentual) : `<input type="number" step="0.01" id="tx_p_${t.id}" value="${num(t.percentual)}" style="width:75px;text-align:right">`}</td>
+            <td class="e txt">${ro ? esc(t.referencia || '') : `<input type="text" id="tx_r_${t.id}" value="${esc(t.referencia || '')}" style="width:100%;min-width:260px">`}</td>
+            <td>${ro ? t.ordem : `<input type="number" id="tx_o_${t.id}" value="${t.ordem}" style="width:60px;text-align:right">`}</td>
+            ${tdEstado(t)}
+            <td class="acoes e">${ro ? '' : `<button onclick="ivaGuardarTaxa(${t.id})">guardar</button><button onclick="ivaGravarTaxa('fin_iva_taxas?id=eq.${t.id}','PATCH',{ativo:${!t.ativo}})">${t.ativo ? 'desativar' : 'ativar'}</button>`}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+        ${ro ? '' : `<div class="barra" style="margin-top:12px;">
+          <label class="field">Nova taxa<input type="text" id="txNome" placeholder="ex.: Normal"></label>
+          <label class="field">%<input type="number" step="0.01" id="txPct" style="width:90px"></label>
+          <label class="field">Referência legal<input type="text" id="txRef" style="min-width:240px"></label>
+          <button class="btn" onclick="if(vAdm('txNome')&&vAdm('txPct'))ivaGravarTaxa('fin_iva_taxas','POST',{nome:vAdm('txNome'),percentual:num(vAdm('txPct')),referencia:vAdm('txRef')||null,ordem:99})">Adicionar</button>
+        </div>`}
+      </details>`;
+  },
+};
+
+async function ivaGravarTaxa(caminho, metodo, corpo){
+  try{
+    confirmarGravado(await apiEscrever(caminho, metodo, corpo), 'alterar isto');
+    toast('Taxa guardada ✓'); await renderRelatorios();
+    document.querySelector('#conteudo details').open = true;
+  }catch(e){ alert('Não guardei: ' + e.message); }
+}
+function ivaGuardarTaxa(id){
+  ivaGravarTaxa(`fin_iva_taxas?id=eq.${id}`, 'PATCH', { percentual: num(vAdm('tx_p_' + id)), referencia: vAdm('tx_r_' + id) || null, ordem: Math.round(num(vAdm('tx_o_' + id))) });
+}
+function ivaAbrir(m){
+  const l = ivaCtx.linhas[m - 1], bases = (l.reg && l.reg.bases) || {};
+  ivaCtx.mes = m;
+  const taxas = ivaCtx.taxas.filter(t => t.ativo || num(bases[t.id]));
+  document.getElementById('iTitulo').textContent = `Apuração de IVA — ${MESES_NOME[m - 1]} de ${anoIva}`;
+  document.getElementById('iBases').innerHTML = taxas.map(t =>
+    `<label class="field">${esc(t.nome)} — ${fmt(t.percentual)}%<input type="number" step="0.01" class="iva-base" data-id="${t.id}" data-pct="${num(t.percentual)}" value="${num(bases[t.id]) || ''}" oninput="ivaCalcModal()"></label>`).join('');
+  document.getElementById('iContab').value = l.contab === null ? '' : l.contab;
+  document.getElementById('iObs').value = (l.reg && l.reg.observacoes) || '';
+  document.getElementById('iErro').textContent = '';
+  ivaCalcModal();
+  abrirModal('modalIva');
+}
+function ivaCalcModal(){
+  const l = ivaCtx.linhas[ivaCtx.mes - 1];
+  let iva = 0, algum = false;
+  document.querySelectorAll('#iBases .iva-base').forEach(el => { const v = num(el.value); if(v) algum = true; iva += v * num(el.dataset.pct) / 100; });
+  const deb = algum ? iva : l.fat * ivaCtx.pVendas / (100 + ivaCtx.pVendas);
+  const c = document.getElementById('iContab').value.trim();
+  const dif = c === '' ? null : deb - num(c);
+  document.getElementById('iCalc').innerHTML =
+    `<span>IVA das vendas (débito) <b>${eur(deb)}</b>${algum ? '' : ' <span class="nota">(estimativa)</span>'}</span>` +
+    `<span>Crédito (compras) <b>${eur(l.cred)}</b></span><span>A pagar <b>${eur(deb - l.cred)}</b></span>` +
+    `<span>Diferença (app − contabilista) <b class="${dif === null ? '' : Math.abs(dif) < 0.01 ? 'dif-ok' : 'dif-mal'}">${dif === null ? '—' : eur(dif)}</b></span>`;
+}
+async function ivaGuardar(){
+  const bases = {};
+  document.querySelectorAll('#iBases .iva-base').forEach(el => { const v = num(el.value); if(v) bases[el.dataset.id] = r2(v); });
+  const c = document.getElementById('iContab').value.trim();
+  const reg = { ano: anoIva, mes: ivaCtx.mes, bases, contabilista: c === '' ? null : r2(num(c)), observacoes: document.getElementById('iObs').value.trim() || null };
+  try{
+    const linhas = await apiEscrever('fin_iva_meses?on_conflict=ano,mes', 'POST', reg, 'resolution=merge-duplicates,return=representation');
+    confirmarGravado(linhas, 'gravar isto');
+    fecharModal('modalIva'); toast('IVA de ' + MESES_NOME[ivaCtx.mes - 1] + ' guardado ✓'); renderRelatorios();
+  }catch(e){ document.getElementById('iErro').textContent = 'Não guardei: ' + e.message; }
 }
 
 // ===================================================================================
