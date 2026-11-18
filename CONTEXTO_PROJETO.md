@@ -46,6 +46,13 @@ Painel · Vendas · Compras (com leitura de faturas por IA) · Aprendizado · Re
       faturamento 129 403,43 €, compras 115 835,45 € — igual ao sistema atual). Guarda de
       perfis e RLS ativas nas 8 tabelas.
 - [x] Compras (lançar, corrigir, filtros, IVA sugerido)
+- [x] Aprendizado (18/11/2026) — conversa com a IA, só master. Edge Function
+      `supabase/functions/fin-aprendizado` (Claude Opus 5.5, SDK npm 1.4.0, fallbacks "default"),
+      publicada pelo editor do painel do Supabase. A IA lê com o JWT de quem chama, guarda lições
+      (`fin_licoes`, entram no prompt) e só PROPÕE alterações (eq./in., sem apagar); a app aplica
+      quando o Daniel confirma. Conversas em `fin_conversas` (histórico inteiro, incl. blocos de
+      raciocínio). Requer: segredo `ANTHROPIC_API_KEY` e "Verify JWT with legacy secret" OFF na
+      função (o projeto usa tokens ES256; a função confirma o master pela base).
 - [ ] Compras: leitura de faturas por IA (Edge Function com `ANTHROPIC_API_KEY` nos secrets) e comprovantes
 - [x] Vendas
 - [x] Painel (18/11/2026) — página inicial, sem botão no menu; volta-se a ele clicando no logo.

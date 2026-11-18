@@ -122,6 +122,31 @@
   table.t tr.inativo td{color:var(--ink-soft);}
   .so-leitura{border-left:4px solid var(--warn-text);background:var(--warn-bg);color:var(--warn-text);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;}
   table.t input[type=number],table.t input[type=text],table.t select{padding:5px 7px;font-size:13px;}
+  /* ---- Aprendizado (conversa com a IA) ---- */
+  .apr{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start;}
+  .apr aside .card{padding:12px 14px;}
+  .apr-lista button.conv{display:block;width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:7px 8px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;}
+  .apr-lista button.conv:hover{background:var(--verde-claro);}
+  .apr-lista button.conv.ativa{background:var(--verde-claro);color:var(--verde-escuro);font-weight:600;}
+  .apr-lista .data{display:block;font-size:11px;color:var(--ink-soft);font-weight:400;}
+  .licao{font-size:13px;border-top:1px solid var(--line);padding:7px 0;}
+  .licao.off{color:var(--ink-soft);text-decoration:line-through;}
+  .chat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;min-height:480px;}
+  .chat-msgs{flex:1;padding:16px;overflow-y:auto;max-height:62vh;display:flex;flex-direction:column;gap:10px;}
+  .bolha{max-width:82%;padding:10px 13px;border-radius:12px;font-size:14px;line-height:1.5;}
+  .bolha.eu{align-self:flex-end;background:var(--verde);color:#fff;border-bottom-right-radius:4px;white-space:pre-wrap;}
+  .bolha.ia{align-self:flex-start;background:var(--cream);border:1px solid var(--line);border-bottom-left-radius:4px;}
+  .bolha.ia ul{margin:4px 0;padding-left:20px;}
+  .bolha.ia p{margin:0 0 6px;} .bolha.ia p:last-child{margin:0;}
+  .acao-ia{align-self:flex-start;font-size:12px;color:var(--ink-soft);}
+  .proposta{align-self:flex-start;max-width:82%;border:2px solid var(--warn-text);background:var(--warn-bg);border-radius:10px;padding:10px 13px;font-size:13px;}
+  .proposta.aplicada{border-color:var(--verde);background:var(--verde-claro);}
+  .proposta.recusada{border-color:var(--line);background:#f6f6f6;color:var(--ink-soft);}
+  .proposta pre{white-space:pre-wrap;font-size:12px;margin:6px 0;background:rgba(255,255,255,.6);padding:6px 8px;border-radius:6px;}
+  .chat-entrada{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);align-items:flex-end;}
+  .chat-entrada textarea{min-height:46px;max-height:180px;}
+  .pensando{align-self:flex-start;font-size:13px;color:var(--ink-soft);font-style:italic;}
+  @media (max-width:760px){ .apr{grid-template-columns:1fr;} .bolha,.proposta{max-width:95%;} }
   #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--verde-escuro);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;display:none;z-index:300;}
   #loginGate{position:fixed;inset:0;background:var(--cream);z-index:100;display:flex;flex-direction:column;overflow-y:auto;}
   #appRoot{display:none;}
@@ -390,7 +415,7 @@ const VISTAS = [
   { id: 'compras', nome: 'Compras',
     desc: 'Diário de compras e despesas: fornecedor, fatura, categoria/subcategoria, centro de custo, quem comprou e quem pagou, forma de pagamento, valor e IVA, com o comprovante. A IA lê a fatura (PDF ou fotos) e pré-preenche os campos. Importar Excel, baixar notas e fecho de mês.' },
   { id: 'aprendizado', nome: 'Aprendizado',
-    desc: 'Regras por fornecedor para a IA ler melhor as faturas: palavras-chave, categoria/subcategoria/forma por defeito e uma dica de leitura.' },
+    desc: 'Converse com a IA sobre os números, ensine-lhe as regras do negócio e peça correções. A IA não altera nada sozinha: propõe, e você confirma.' },
   { id: 'relatorios', nome: 'Relatórios',
     desc: 'Relatórios gerenciais a partir das Vendas e das Compras registadas.' },
   { id: 'conciliacao', nome: 'Conciliação',
@@ -403,13 +428,15 @@ function lerVistaDoEndereco(){ const h = location.hash.replace('#', ''); return 
 
 function desenharMenu(ativa){
   // O Painel não tem botão: é a página inicial e volta-se a ele clicando no logo.
-  document.getElementById('nav').innerHTML = VISTAS.filter(v => v.id !== 'painel').map(v =>
+  // O Aprendizado (conversa com a IA) é só para o master.
+  document.getElementById('nav').innerHTML = VISTAS.filter(v => v.id !== 'painel' && (v.id !== 'aprendizado' || souMaster())).map(v =>
     `<button class="${v.id === ativa ? 'active' : ''}" onclick="irPara('${v.id}')">${v.nome}</button>`).join('');
 }
 
-const RENDER_VISTA = { painel: renderPainel, vendas: renderVendas, compras: renderCompras, relatorios: renderRelatorios, admin: renderAdmin };
+const RENDER_VISTA = { painel: renderPainel, vendas: renderVendas, compras: renderCompras, aprendizado: renderAprendizado, relatorios: renderRelatorios, admin: renderAdmin };
 
 function irPara(id){
+  if(id === 'aprendizado' && !souMaster()) id = 'painel';
   const v = VISTAS.find(x => x.id === id) || VISTAS[0];
   if(location.hash !== '#' + v.id) history.replaceState(null, '', '#' + v.id);
   desenharMenu(v.id);
@@ -890,6 +917,208 @@ async function renderPainel(){
     data: { labels: vm.map(v => +v.data.slice(8, 10)), datasets: [{ label: 'Faturamento', data: vm.map(v => r2(calcVenda(v).fat)), borderColor: VERDE, backgroundColor: 'rgba(46,125,79,.12)', fill: true, tension: .3, pointRadius: 2 }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => 'Dia ' + c[0].label + ' (' + diaSemana(vm[c[0].dataIndex].data) + ')', label: c => eur(c.parsed.y) } } } },
   }));
+}
+
+// ===================================================================================
+//  APRENDIZADO — conversa com a IA (só master)
+//   A conversa corre na Edge Function "fin-aprendizado" (chave da API fica no Supabase).
+//   A IA lê, guarda lições e PROPÕE alterações; só o Daniel as aplica aqui.
+// ===================================================================================
+let aprConversas = [], aprLicoes = [], aprAtual = null, aprNotas = [], aprOcupado = false;
+const NOMES_TABELA = { fin_compras: 'compras', fin_vendas_dia: 'vendas', fin_categorias: 'categorias', fin_subcategorias: 'subcategorias',
+  fin_centros_custo: 'áreas', fin_formas_pagamento: 'formas de pagamento', fin_regras: 'regras', fin_metas: 'metas', fin_canais: 'canais',
+  fin_config: 'configurações', fin_iva_taxas: 'taxas de IVA', fin_iva_meses: 'apuração de IVA', fin_licoes: 'lições' };
+
+async function renderAprendizado(){
+  [aprConversas, aprLicoes] = await Promise.all([
+    apiGet('fin_conversas?select=id,titulo,atualizado_em&order=atualizado_em.desc&limit=50'),
+    apiGet('fin_licoes?select=*&order=id'),
+  ]);
+  document.getElementById('conteudo').innerHTML = `
+    <div class="apr">
+      <aside>
+        <div class="card">
+          <button class="btn" style="width:100%;margin-bottom:8px;" onclick="aprNova()">+ Nova conversa</button>
+          <div class="apr-lista" id="aprLista"></div>
+        </div>
+        <div class="card">
+          <div class="grupo-tit" style="margin-top:0;">O que a IA já aprendeu</div>
+          <div id="aprLicoes"></div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <input type="text" id="aprNovaLicao" placeholder="Ensinar uma regra…" style="flex:1;min-width:0;" onkeydown="if(event.key==='Enter')aprAddLicao()">
+            <button class="btn sec" onclick="aprAddLicao()">+</button>
+          </div>
+        </div>
+      </aside>
+      <div class="chat">
+        <div class="chat-msgs" id="aprMsgs"></div>
+        <div class="chat-entrada">
+          <textarea id="aprTexto" placeholder="Ex.: Porque é que o resultado de outubro foi negativo?  ·  Há compras sem categoria?  ·  Aprende: a Makro é sempre CMV."
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aprEnviar();}"></textarea>
+          <button class="btn" id="aprBtn" onclick="aprEnviar()">Enviar</button>
+        </div>
+      </div>
+    </div>`;
+  aprDesenharLista(); aprDesenharLicoes();
+  if(aprAtual && aprAtual.id) await aprAbrir(aprAtual.id); else aprDesenharMsgs();
+}
+function aprDesenharLista(){
+  const el = document.getElementById('aprLista'); if(!el) return;
+  el.innerHTML = aprConversas.map(c => `<button class="conv ${aprAtual && aprAtual.id === c.id ? 'ativa' : ''}" onclick="aprAbrir(${c.id})">${esc(c.titulo || 'Conversa')}
+      <span class="data">${new Date(c.atualizado_em).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span></button>`).join('')
+    || '<p class="nota" style="margin:4px 0 0;">Ainda sem conversas.</p>';
+}
+function aprDesenharLicoes(){
+  const el = document.getElementById('aprLicoes'); if(!el) return;
+  el.innerHTML = aprLicoes.map(l => `<div class="licao ${l.ativo ? '' : 'off'}">${esc(l.texto)}
+      <div class="acoes" style="margin-top:2px;"><button onclick="aprLicaoEstado(${l.id},${!l.ativo})">${l.ativo ? 'pausar' : 'reativar'}</button><button onclick="aprLicaoApagar(${l.id})">apagar</button></div></div>`).join('')
+    || '<p class="nota" style="margin:0;">Nada ainda. Ensine na conversa ("aprende que…") ou escreva aqui.</p>';
+}
+async function aprRecarregarLicoes(){ aprLicoes = await apiGet('fin_licoes?select=*&order=id'); aprDesenharLicoes(); }
+async function aprAddLicao(){
+  const t = vAdm('aprNovaLicao'); if(!t) return;
+  try{ confirmarGravado(await apiEscrever('fin_licoes', 'POST', { texto: t }), 'gravar isto'); document.getElementById('aprNovaLicao').value = ''; toast('Lição guardada ✓'); aprRecarregarLicoes(); }
+  catch(e){ alert('Não guardei: ' + e.message); }
+}
+async function aprLicaoEstado(id, ativo){
+  try{ confirmarGravado(await apiEscrever(`fin_licoes?id=eq.${id}`, 'PATCH', { ativo }), 'alterar isto'); aprRecarregarLicoes(); }catch(e){ alert(e.message); }
+}
+async function aprLicaoApagar(id){
+  if(!confirm('Apagar esta lição? A IA deixa de a seguir.')) return;
+  try{ confirmarGravado(await apiEscrever(`fin_licoes?id=eq.${id}`, 'DELETE'), 'apagar'); aprRecarregarLicoes(); }catch(e){ alert(e.message); }
+}
+function aprNova(){ aprAtual = null; aprNotas = []; aprDesenharLista(); aprDesenharMsgs(); document.getElementById('aprTexto').focus(); }
+async function aprAbrir(id){
+  const r = await apiGet(`fin_conversas?select=*&id=eq.${id}`);
+  aprAtual = r[0] || null; aprNotas = [];
+  aprDesenharLista(); aprDesenharMsgs();
+}
+
+// texto simples da IA -> HTML (negrito, listas, parágrafos), sempre escapado
+function aprFormatar(t){
+  const linhas = esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').split('\n');
+  let html = '', lista = false;
+  for(const l of linhas){
+    const m = l.match(/^\s*[-•*]\s+(.*)/);
+    if(m){ if(!lista){ html += '<ul>'; lista = true; } html += `<li>${m[1]}</li>`; continue; }
+    if(lista){ html += '</ul>'; lista = false; }
+    if(l.trim()) html += `<p>${l}</p>`;
+  }
+  return html + (lista ? '</ul>' : '');
+}
+function aprAcaoTexto(b){
+  const i = b.input || {};
+  if(b.name === 'consultar') return `🔎 consultou ${NOMES_TABELA[i.tabela] || i.tabela}`;
+  if(b.name === 'resumo_mes') return `📊 calculou o resumo de ${i.mes ? nomeMes(i.mes) : 'um mês'}`;
+  if(b.name === 'guardar_licao') return `🧠 guardou uma lição: «${i.texto || ''}»`;
+  if(b.name === 'propor_alteracao') return '';
+  return '⚙️ ' + b.name;
+}
+function aprDesenharMsgs(pensando){
+  const el = document.getElementById('aprMsgs'); if(!el) return;
+  const msgs = (aprAtual && aprAtual.mensagens) || [], props = (aprAtual && aprAtual.propostas) || [];
+  let html = '';
+  if(!msgs.length){
+    html = `<div class="acao-ia" style="align-self:center;text-align:center;max-width:520px;margin:30px auto;font-size:14px;">
+      Pergunte o que quiser sobre vendas, compras, resultado ou IVA. Também pode ensinar regras
+      (<i>"aprende que a Makro é sempre CMV"</i>) e pedir correções — a IA mostra a proposta e só muda alguma coisa se carregar em <b>Aplicar</b>.</div>`;
+  }
+  for(const m of msgs){
+    const blocos = typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : (m.content || []);
+    for(const b of blocos){
+      if(m.role === 'user' && b.type === 'text'){
+        const t = b.text.replace(/\n*\(Nota da app: [\s\S]*$/, '');
+        if(t.trim()) html += `<div class="bolha eu">${esc(t)}</div>`;
+      }else if(m.role === 'assistant' && b.type === 'text' && b.text.trim()){
+        html += `<div class="bolha ia">${aprFormatar(b.text)}</div>`;
+      }else if(m.role === 'assistant' && b.type === 'tool_use'){
+        const a = aprAcaoTexto(b); if(a) html += `<div class="acao-ia">${esc(a)}</div>`;
+        const p = props.find(x => x.id === b.id);
+        if(p) html += aprPropostaHtml(p);
+      }
+    }
+  }
+  if(pensando) html += '<div class="pensando">A IA está a pensar…</div>';
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+function aprPropostaHtml(p){
+  const est = p.estado === 'aplicada' ? `✅ Aplicada${p.resultado ? ' — ' + esc(p.resultado) : ''}` : p.estado === 'recusada' ? '✖ Recusada' : '';
+  return `<div class="proposta ${p.estado}">
+    <b>✏️ Proposta de alteração</b> · ${p.registos} registo(s) em ${esc(NOMES_TABELA[p.tabela] || p.tabela)}
+    <div style="margin-top:4px;">${esc(p.descricao)}</div>
+    <pre>onde: ${esc(p.filtro)}\nmuda: ${esc(JSON.stringify(p.mudancas))}</pre>
+    ${p.estado === 'pendente'
+      ? `<div style="display:flex;gap:8px;"><button class="btn" onclick="aprAplicar('${p.id}')">Aplicar</button><button class="btn sec" onclick="aprRecusar('${p.id}')">Recusar</button></div>`
+      : `<div>${est}</div>`}
+  </div>`;
+}
+async function aprGuardarConversa(){
+  const corpo = { titulo: aprAtual.titulo, mensagens: aprAtual.mensagens, propostas: aprAtual.propostas || [] };
+  if(aprAtual.id){
+    confirmarGravado(await apiEscrever(`fin_conversas?id=eq.${aprAtual.id}`, 'PATCH', corpo), 'gravar isto');
+  }else{
+    const r = await apiEscrever('fin_conversas', 'POST', corpo);
+    confirmarGravado(r, 'gravar isto'); aprAtual.id = r[0].id;
+  }
+}
+async function chamarIA(mensagens){
+  const fazer = () => fetch(`${SUPABASE_URL}/functions/v1/fin-aprendizado`, { method: 'POST', headers: sbHeaders(), body: JSON.stringify({ mensagens }) });
+  let r = await fazer();
+  if(r.status === 401 && sbRefreshToken && await trocarToken({ refresh_token: sbRefreshToken }, 'refresh_token')) r = await fazer();
+  const d = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(d.erro || d.message || ('erro ' + r.status));
+  return d;
+}
+async function aprEnviar(){
+  if(aprOcupado) return;
+  const caixa = document.getElementById('aprTexto'), texto = caixa.value.trim();
+  if(!texto) return;
+  aprOcupado = true; document.getElementById('aprBtn').disabled = true;
+  if(!aprAtual) aprAtual = { id: null, titulo: texto.slice(0, 60), mensagens: [], propostas: [] };
+  const conteudo = texto + (aprNotas.length ? '\n\n(Nota da app: ' + aprNotas.join(' ') + ')' : '');
+  aprNotas = [];
+  const ultima = aprAtual.mensagens[aprAtual.mensagens.length - 1];
+  if(ultima && ultima.role === 'user'){   // a anterior ficou sem resposta: junta-se a ela
+    if(typeof ultima.content === 'string') ultima.content = [{ type: 'text', text: ultima.content }];
+    ultima.content.push({ type: 'text', text: conteudo });
+  }else aprAtual.mensagens.push({ role: 'user', content: [{ type: 'text', text: conteudo }] });
+  caixa.value = '';
+  aprDesenharMsgs(true);
+  try{
+    await aprGuardarConversa();
+    const d = await chamarIA(aprAtual.mensagens);
+    aprAtual.mensagens.push(...(d.novas || []));
+    aprAtual.propostas = [...(aprAtual.propostas || []), ...(d.propostas || [])];
+    await aprGuardarConversa();
+    if((d.novas || []).some(m => Array.isArray(m.content) && m.content.some(b => b.type === 'tool_use' && b.name === 'guardar_licao'))) aprRecarregarLicoes();
+  }catch(e){
+    aprDesenharMsgs();
+    document.getElementById('aprMsgs').insertAdjacentHTML('beforeend', `<div class="erro" style="align-self:flex-start;">Não consegui falar com a IA: ${esc(e.message)}</div>`);
+    aprOcupado = false; document.getElementById('aprBtn').disabled = false;
+    return;
+  }
+  aprOcupado = false; document.getElementById('aprBtn').disabled = false;
+  aprConversas = await apiGet('fin_conversas?select=id,titulo,atualizado_em&order=atualizado_em.desc&limit=50').catch(() => aprConversas);
+  aprDesenharLista(); aprDesenharMsgs();
+}
+async function aprAplicar(id){
+  const p = (aprAtual.propostas || []).find(x => x.id === id); if(!p || p.estado !== 'pendente') return;
+  if(!confirm(`Aplicar esta alteração em ${p.registos} registo(s) de ${NOMES_TABELA[p.tabela] || p.tabela}?\n\n${p.descricao}`)) return;
+  try{
+    const linhas = await apiEscrever(`${p.tabela}?${p.filtro}`, 'PATCH', p.mudancas);
+    confirmarGravado(linhas, 'alterar isto');
+    p.estado = 'aplicada'; p.resultado = `${linhas.length} registo(s) alterado(s)`;
+    aprNotas.push(`a proposta «${p.descricao}» foi aplicada (${linhas.length} registo(s)).`);
+    await aprGuardarConversa(); await carregarListas();
+    toast('Alteração aplicada ✓'); aprDesenharMsgs();
+  }catch(e){ alert('Não apliquei: ' + e.message); }
+}
+async function aprRecusar(id){
+  const p = (aprAtual.propostas || []).find(x => x.id === id); if(!p) return;
+  p.estado = 'recusada'; aprNotas.push(`a proposta «${p.descricao}» foi recusada pelo Daniel.`);
+  try{ await aprGuardarConversa(); }catch(e){}
+  aprDesenharMsgs();
 }
 
 // ===================================================================================
