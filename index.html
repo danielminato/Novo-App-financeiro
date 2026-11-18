@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1F5A38">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IF Financeiro">
+<meta name="google" content="notranslate">
+<title>Il Fortunato — Financeiro</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231F5A38'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23fff' text-anchor='middle'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Mesmo desenho da app de estoque, em VERDE (para distinguir à primeira vista). */
+  :root{
+    --cream:#F2F6F3;
+    --card:#FFFFFF;
+    --verde:#2E7D4F;
+    --verde-escuro:#1F5A38;
+    --verde-claro:#E3F1E8;
+    --ink:#1E2A23;
+    --ink-soft:#66736B;
+    --line:#DCE6DF;
+    --warn-bg:#FDF0DC;
+    --warn-text:#8A5A10;
+    --danger-bg:#FBE3E1;
+    --danger-text:#B03A32;
+    --ok-bg:#E3F1E8;
+    --ok-text:#2E7D4F;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;line-height:1.5;padding:0 0 60px;}
+  h1,h2,h3{font-family:'Playfair Display',serif;font-weight:600;margin:0;}
+  .topbar{padding:22px 32px 14px;border-bottom:2px solid var(--verde);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+  .topbar h1{font-size:26px;color:var(--verde-escuro);letter-spacing:.08em;text-transform:uppercase;}
+  .topbar .sub{color:var(--verde-escuro);font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:600;border-top:1px solid var(--line);padding-top:6px;margin-top:2px;}
+  .user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-soft);}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--verde-claro);color:var(--verde-escuro);text-transform:uppercase;letter-spacing:.04em;}
+  .badge.master{background:var(--verde-escuro);color:#fff;}
+  .link{background:none;border:none;color:var(--verde-escuro);cursor:pointer;font:inherit;text-decoration:underline;padding:0;}
+  nav{display:flex;gap:4px;padding:12px 32px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  nav button{border:none;background:none;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;color:var(--ink-soft);padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  nav button.active{color:var(--verde-escuro);border-bottom-color:var(--verde);}
+  main{padding:26px 32px;max-width:1150px;}
+  .view{display:none;}
+  .view.active{display:block;}
+  .view h2{font-size:24px;color:var(--verde-escuro);margin-bottom:6px;}
+  .desc{color:var(--ink-soft);margin:0 0 18px;max-width:760px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;}
+  .em-construcao{border-left:4px solid var(--verde);background:var(--verde-claro);border-radius:8px;padding:14px 16px;color:var(--verde-escuro);font-size:14px;}
+  .em-construcao ul{margin:8px 0 0;padding-left:20px;}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.06);}
+  label.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-soft);margin-bottom:12px;}
+  input[type=email],input[type=password],input[type=text],input[type=number],select{font-family:'Inter',sans-serif;font-size:14px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);}
+  button.btn{font-family:'Inter',sans-serif;font-weight:600;font-size:13px;padding:10px 16px;border-radius:8px;border:1px solid var(--verde);background:var(--verde);color:#fff;cursor:pointer;}
+  button.btn:hover{background:var(--verde-escuro);}
+  .nota{font-size:12px;color:var(--ink-soft);}
+  .erro{color:var(--danger-text);font-size:13px;min-height:18px;margin-top:8px;}
+  #loginGate{position:fixed;inset:0;background:var(--cream);z-index:100;display:flex;flex-direction:column;overflow-y:auto;}
+  #appRoot{display:none;}
+  @media (max-width:640px){
+    .topbar{padding:14px 16px;}
+    main{padding:16px;}
+    nav{flex-wrap:nowrap;overflow-x:auto;padding:8px 16px 0;}
+    nav button{white-space:nowrap;padding:8px 10px;font-size:13px;}
+    #loginWrap{padding:20px 16px 40px !important;justify-content:center !important;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN (mesmas contas da app de estoque) ================= -->
+<div id="loginGate">
+  <div class="topbar">
+    <div>
+      <h1>Il Fortunato</h1>
+      <div class="sub">Financeiro</div>
+    </div>
+  </div>
+  <div style="padding:24px 60px 0;">
+    <p style="font-size:19px;margin:0;">Vendas, compras, relatórios e conciliação</p>
+    <p class="nota" style="margin-top:4px;">Entra com o mesmo email e password da app de estoque. Só administradores.</p>
+  </div>
+  <div id="loginWrap" style="display:flex;justify-content:flex-end;padding:24px 60px 60px;">
+    <div class="modal" style="max-width:380px;width:100%;">
+      <h3 style="margin-bottom:16px;">Entrar</h3>
+      <label class="field">Email
+        <input type="email" id="gateEmail" autocomplete="username">
+      </label>
+      <label class="field">Password
+        <input type="password" id="gateSenha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()">
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);margin:2px 0 14px;cursor:pointer;">
+        <input type="checkbox" id="gateManter" style="width:18px;height:18px;" checked> Manter-me ligado neste aparelho
+      </label>
+      <button class="btn" style="width:100%;" onclick="fazerLogin()">Entrar</button>
+      <div class="erro" id="gateErro"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="appRoot">
+  <div class="topbar">
+    <div>
+      <h1>Il Fortunato</h1>
+      <div class="sub">Financeiro</div>
+    </div>
+    <div class="user"><span id="userEmail"></span> <span id="userNivel" class="badge"></span> · <button class="link" onclick="sair()">sair</button></div>
+  </div>
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+
+<script>
+// ===================================================================================
+//  Il Fortunato — Financeiro  (app separada; mais tarde integra na app de estoque)
+//  Mesma base Supabase e mesmos logins. Tabelas do financeiro: prefixo fin_
+//  Ver CONTEXTO_PROJETO.md
+// ===================================================================================
+const SUPABASE_URL = 'https://oenaolbgjqkyzqjxmfzo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_y6OK894gUh7sXlLoZ9dpVg_Elzl_dcT';
+
+// ---- Sessão ----
+let sbAccessToken = null, sbRefreshToken = null, usuarioEmail = null, nivelAtual = null;
+const CHAVE_SESSAO = 'iffin_sessao', CHAVE_MANTER = 'iffin_manter';
+
+function sbHeaders(extra){
+  return { apikey: SUPABASE_KEY, Authorization: `Bearer ${sbAccessToken || SUPABASE_KEY}`, 'Content-Type': 'application/json', ...(extra || {}) };
+}
+function guardarSessao(){
+  try{
+    if(localStorage.getItem(CHAVE_MANTER) === '1' && sbRefreshToken) localStorage.setItem(CHAVE_SESSAO, JSON.stringify({ r: sbRefreshToken, e: usuarioEmail }));
+  }catch(e){}
+}
+function limparSessao(){ try{ localStorage.removeItem(CHAVE_SESSAO); }catch(e){} }
+
+async function trocarToken(corpo, tipo){
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${tipo}`, {
+    method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(corpo)
+  });
+  const d = await r.json().catch(() => ({}));
+  if(!r.ok) return null;
+  sbAccessToken = d.access_token; sbRefreshToken = d.refresh_token || null;
+  usuarioEmail = d.user?.email || usuarioEmail;
+  guardarSessao();
+  return d;
+}
+
+// Pedidos à base com renovação automática do token quando expira
+async function api(caminho, opts){
+  const fazer = () => fetch(`${SUPABASE_URL}/rest/v1/${caminho}`, { ...(opts || {}), headers: sbHeaders(opts && opts.headers) });
+  let r = await fazer();
+  if(r.status === 401 && sbRefreshToken && await trocarToken({ refresh_token: sbRefreshToken }, 'refresh_token')) r = await fazer();
+  return r;
+}
+async function apiGet(caminho){
+  const r = await api(caminho);
+  if(!r.ok) throw new Error(`Falha ao ler ${caminho.split('?')[0]} (${r.status})`);
+  return r.json();
+}
+
+async function fazerLogin(){
+  const email = document.getElementById('gateEmail').value.trim();
+  const senha = document.getElementById('gateSenha').value;
+  const erro = document.getElementById('gateErro');
+  erro.textContent = '';
+  if(!email || !senha){ erro.textContent = 'Preenche email e password.'; return; }
+  try{ localStorage.setItem(CHAVE_MANTER, document.getElementById('gateManter').checked ? '1' : '0'); }catch(e){}
+  try{
+    const d = await trocarToken({ email, password: senha }, 'password');
+    if(!d){ erro.textContent = 'Email ou password incorretos.'; return; }
+    usuarioEmail = d.user?.email || email;
+    if(senha === '123456'){ erro.textContent = 'Ainda tens a password inicial. Troca-a primeiro na app de estoque.'; await sair(true); return; }
+    await entrar();
+  }catch(e){ erro.textContent = 'Não consegui ligar. Verifica a internet e tenta de novo.'; }
+}
+
+async function entrar(){
+  // Só administradores (tabela admins). O nível (master/admin) vem da mesma tabela.
+  let eu = null;
+  try{
+    const admins = await apiGet('admins?select=*');
+    eu = admins.find(a => (a.email || '').toLowerCase() === (usuarioEmail || '').toLowerCase());
+  }catch(e){}
+  if(!eu){
+    document.getElementById('gateErro').textContent = 'Esta app é só para administradores.';
+    await sair(true);
+    return;
+  }
+  nivelAtual = eu.nivel || 'admin';
+  document.getElementById('loginGate').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+  document.getElementById('userEmail').textContent = usuarioEmail;
+  const b = document.getElementById('userNivel');
+  b.textContent = nivelAtual === 'master' ? 'admin master' : 'admin';
+  b.className = 'badge' + (nivelAtual === 'master' ? ' master' : '');
+  irPara(lerVistaDoEndereco() || 'painel');
+}
+
+async function sair(silencioso){
+  limparSessao();
+  if(sbAccessToken){
+    try{ await fetch(`${SUPABASE_URL}/auth/v1/logout?scope=local`, { method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${sbAccessToken}` } }); }catch(e){}
+  }
+  sbAccessToken = sbRefreshToken = usuarioEmail = nivelAtual = null;
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('loginGate').style.display = 'flex';
+  document.getElementById('gateSenha').value = '';
+  if(!silencioso) document.getElementById('gateErro').textContent = '';
+}
+
+async function retomarSessao(){
+  let s = null;
+  try{ if(localStorage.getItem(CHAVE_MANTER) === '1') s = JSON.parse(localStorage.getItem(CHAVE_SESSAO) || 'null'); }catch(e){}
+  if(!s || !s.r) return;
+  usuarioEmail = s.e;
+  if(await trocarToken({ refresh_token: s.r }, 'refresh_token')) await entrar();
+  else limparSessao();
+}
+
+// ---- Navegação (mesmas secções do sistema atual) ----
+const VISTAS = [
+  { id: 'painel', nome: 'Painel',
+    desc: 'Indicadores do mês: faturamento, resultado, CMV (% do faturamento), média diária e meta de vendas; gráficos de receita × despesas (6 meses), vendas por canal, despesas por categoria e faturamento diário.' },
+  { id: 'vendas', nome: 'Vendas',
+    desc: 'Vendas diárias com conferência de caixa: Total A (dinheiro + cartões − gorjetas) contra Total B (sistema + M20), diferença do dia, e delivery (Uber, Bolt, Glovo). As gorjetas não entram no faturamento.' },
+  { id: 'compras', nome: 'Compras',
+    desc: 'Diário de compras e despesas: fornecedor, fatura, categoria/subcategoria, centro de custo, quem comprou e quem pagou, forma de pagamento, valor e IVA, com o comprovante. A IA lê a fatura (PDF ou fotos) e pré-preenche os campos. Importar Excel, baixar notas e fecho de mês.' },
+  { id: 'aprendizado', nome: 'Aprendizado',
+    desc: 'Regras por fornecedor para a IA ler melhor as faturas: palavras-chave, categoria/subcategoria/forma por defeito e uma dica de leitura.' },
+  { id: 'relatorios', nome: 'Relatórios',
+    desc: 'Relatório de vendas, fluxo de caixa, DRE e apuração de IVA, por mês.' },
+  { id: 'conciliacao', nome: 'Conciliação',
+    desc: 'Importar o extrato bancário (.xlsx) e cruzar automaticamente com as compras: conciliadas, pendentes e ignoradas.' },
+  { id: 'admin', nome: 'Administração',
+    desc: 'Categorias e subcategorias de despesa, centros de custo, formas de pagamento, canais de venda, regras de classificação e metas mensais.' },
+];
+
+function lerVistaDoEndereco(){ const h = location.hash.replace('#', ''); return VISTAS.some(v => v.id === h) ? h : null; }
+
+function desenharMenu(ativa){
+  document.getElementById('nav').innerHTML = VISTAS.map(v =>
+    `<button class="${v.id === ativa ? 'active' : ''}" onclick="irPara('${v.id}')">${v.nome}</button>`).join('');
+}
+
+function irPara(id){
+  const v = VISTAS.find(x => x.id === id) || VISTAS[0];
+  if(location.hash !== '#' + v.id) history.replaceState(null, '', '#' + v.id);
+  desenharMenu(v.id);
+  document.getElementById('main').innerHTML = `
+    <section class="view active" id="view-${v.id}">
+      <h2>${v.nome}</h2>
+      <p class="desc">${v.desc}</p>
+      <div class="em-construcao"><strong>Em construção.</strong> Esta secção vai reproduzir a do sistema atual, com os dados já copiados de lá.</div>
+    </section>`;
+}
+window.addEventListener('hashchange', () => { if(nivelAtual) irPara(lerVistaDoEndereco() || 'painel'); });
+
+retomarSessao();
+</script>
+</body>
+</html>
