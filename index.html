@@ -1067,7 +1067,12 @@ async function chamarIA(mensagens){
   let r = await fazer();
   if(r.status === 401 && sbRefreshToken && await trocarToken({ refresh_token: sbRefreshToken }, 'refresh_token')) r = await fazer();
   const d = await r.json().catch(() => ({}));
-  if(!r.ok) throw new Error(d.erro || d.message || ('erro ' + r.status));
+  if(!r.ok){
+    const m = d.erro || d.message || ('erro ' + r.status);
+    if(/credit balance is too low/i.test(m)) throw new Error('a conta da Anthropic está sem créditos. Compre créditos em platform.claude.com → Settings → Billing e carregue em "Tentar de novo".');
+    if(/não é válida|invalid x-api-key|authentication/i.test(m)) throw new Error('a chave ANTHROPIC_API_KEY guardada no Supabase não é válida. Volte a colá-la em Edge Functions → Secrets.');
+    throw new Error(m);
+  }
   return d;
 }
 async function aprEnviar(){
@@ -1084,6 +1089,11 @@ async function aprEnviar(){
     ultima.content.push({ type: 'text', text: conteudo });
   }else aprAtual.mensagens.push({ role: 'user', content: [{ type: 'text', text: conteudo }] });
   caixa.value = '';
+  await aprPedirIA();
+}
+// envia a conversa à IA (também usado por "Tentar de novo", sem repetir a pergunta)
+async function aprPedirIA(){
+  aprOcupado = true; document.getElementById('aprBtn').disabled = true;
   aprDesenharMsgs(true);
   try{
     await aprGuardarConversa();
@@ -1094,8 +1104,11 @@ async function aprEnviar(){
     if((d.novas || []).some(m => Array.isArray(m.content) && m.content.some(b => b.type === 'tool_use' && b.name === 'guardar_licao'))) aprRecarregarLicoes();
   }catch(e){
     aprDesenharMsgs();
-    document.getElementById('aprMsgs').insertAdjacentHTML('beforeend', `<div class="erro" style="align-self:flex-start;">Não consegui falar com a IA: ${esc(e.message)}</div>`);
+    document.getElementById('aprMsgs').insertAdjacentHTML('beforeend', `<div class="erro" style="align-self:flex-start;">Não consegui falar com a IA: ${esc(e.message)}
+      <div style="margin-top:6px;"><button class="btn sec" onclick="aprPedirIA()">Tentar de novo</button></div></div>`);
     aprOcupado = false; document.getElementById('aprBtn').disabled = false;
+    aprConversas = await apiGet('fin_conversas?select=id,titulo,atualizado_em&order=atualizado_em.desc&limit=50').catch(() => aprConversas);
+    aprDesenharLista();
     return;
   }
   aprOcupado = false; document.getElementById('aprBtn').disabled = false;
