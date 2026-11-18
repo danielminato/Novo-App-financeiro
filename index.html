@@ -12,6 +12,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231F5A38'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23fff' text-anchor='middle'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   /* Mesmo desenho da app de estoque, em VERDE (para distinguir à primeira vista). */
   :root{
@@ -98,6 +99,29 @@
   .calc b{color:var(--verde-escuro);}
   .modal-acoes{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;}
   .modal-acoes .esq{margin-right:auto;}
+  .logo-link{cursor:pointer;}
+  /* ---- Painel ---- */
+  .kpi .var{font-size:12px;font-weight:600;}
+  .kpi .var.up{color:var(--ok-text);} .kpi .var.down{color:var(--danger-text);}
+  .kpi .val.pos{color:var(--ok-text);}
+  .meta-box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:18px;}
+  .meta-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:14px;margin-bottom:8px;}
+  .meta-bar{height:12px;background:var(--verde-claro);border-radius:6px;overflow:hidden;}
+  .meta-bar span{display:block;height:100%;background:var(--verde);border-radius:6px;}
+  .meta-bar span.ok{background:var(--verde-escuro);}
+  .graficos{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grafico{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+  .grafico.largo{grid-column:1 / -1;}
+  .grafico h3{font-size:16px;color:var(--verde-escuro);margin-bottom:8px;}
+  .grafico .cw{position:relative;height:260px;}
+  @media (max-width:760px){ .graficos{grid-template-columns:1fr;} }
+  /* ---- Administração ---- */
+  .subnav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;}
+  .subnav button{font:inherit;font-size:13px;padding:6px 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);cursor:pointer;}
+  .subnav button.active{background:var(--verde);border-color:var(--verde);color:#fff;}
+  table.t tr.inativo td{color:var(--ink-soft);}
+  .so-leitura{border-left:4px solid var(--warn-text);background:var(--warn-bg);color:var(--warn-text);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;}
+  table.t input[type=number],table.t input[type=text],table.t select{padding:5px 7px;font-size:13px;}
   #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--verde-escuro);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;display:none;z-index:300;}
   #loginGate{position:fixed;inset:0;background:var(--cream);z-index:100;display:flex;flex-direction:column;overflow-y:auto;}
   #appRoot{display:none;}
@@ -145,7 +169,7 @@
 <!-- ================= APP ================= -->
 <div id="appRoot">
   <div class="topbar">
-    <div>
+    <div class="logo-link" onclick="irPara('painel')" title="Ir para o Painel">
       <h1>Il Fortunato</h1>
       <div class="sub">Financeiro</div>
     </div>
@@ -339,8 +363,7 @@ async function retomarSessao(){
 
 // ---- Navegação (mesmas secções do sistema atual) ----
 const VISTAS = [
-  { id: 'painel', nome: 'Painel',
-    desc: 'Indicadores do mês: faturamento, resultado, CMV (% do faturamento), média diária e meta de vendas; gráficos de receita × despesas (6 meses), vendas por canal, despesas por categoria e faturamento diário.' },
+  { id: 'painel', nome: 'Painel', desc: '' },
   { id: 'vendas', nome: 'Vendas',
     desc: 'Vendas diárias com conferência de caixa: Total A (dinheiro + cartões − gorjetas) contra Total B (sistema + M20), diferença do dia, e delivery (Uber, Bolt, Glovo). As gorjetas não entram no faturamento.' },
   { id: 'compras', nome: 'Compras',
@@ -352,17 +375,18 @@ const VISTAS = [
   { id: 'conciliacao', nome: 'Conciliação',
     desc: 'Importar o extrato bancário (.xlsx) e cruzar automaticamente com as compras: conciliadas, pendentes e ignoradas.' },
   { id: 'admin', nome: 'Administração',
-    desc: 'Categorias e subcategorias de despesa, centros de custo, formas de pagamento, canais de venda, regras de classificação e metas mensais.' },
+    desc: 'Listas usadas nos lançamentos, metas mensais, regras de classificação das compras e quem tem acesso.' },
 ];
 
 function lerVistaDoEndereco(){ const h = location.hash.replace('#', ''); return VISTAS.some(v => v.id === h) ? h : null; }
 
 function desenharMenu(ativa){
-  document.getElementById('nav').innerHTML = VISTAS.map(v =>
+  // O Painel não tem botão: é a página inicial e volta-se a ele clicando no logo.
+  document.getElementById('nav').innerHTML = VISTAS.filter(v => v.id !== 'painel').map(v =>
     `<button class="${v.id === ativa ? 'active' : ''}" onclick="irPara('${v.id}')">${v.nome}</button>`).join('');
 }
 
-const RENDER_VISTA = { vendas: renderVendas, compras: renderCompras };
+const RENDER_VISTA = { painel: renderPainel, vendas: renderVendas, compras: renderCompras, admin: renderAdmin };
 
 function irPara(id){
   const v = VISTAS.find(x => x.id === id) || VISTAS[0];
@@ -372,7 +396,7 @@ function irPara(id){
   main.innerHTML = `
     <section class="view active" id="view-${v.id}">
       <h2>${v.nome}</h2>
-      <p class="desc">${v.desc}</p>
+      ${v.desc ? `<p class="desc">${v.desc}</p>` : ''}
       <div id="conteudo">${RENDER_VISTA[v.id] ? '<p class="nota">A carregar…</p>' : '<div class="em-construcao"><strong>Em construção.</strong> Esta secção vai reproduzir a do sistema atual, com os dados já copiados de lá.</div>'}</div>
     </section>`;
   if(RENDER_VISTA[v.id]) RENDER_VISTA[v.id]().catch(e => { document.getElementById('conteudo').innerHTML = `<div class="erro">Não consegui carregar: ${esc(e.message)}</div>`; });
@@ -420,17 +444,18 @@ function confirmarGravado(linhas, acao){
 }
 
 // ---- Listas (categorias, subcategorias, centros, formas) ----
-let LISTAS = { categorias: [], subcategorias: [], centros: [], formas: [] };
+let LISTAS = { categorias: [], subcategorias: [], centros: [], formas: [], canais: [] };
 async function carregarListas(){
   try{
-    const [categorias, subcategorias, centros, formas] = await Promise.all([
+    const [categorias, subcategorias, centros, formas, canais] = await Promise.all([
       apiGet('fin_categorias?select=*&order=nome'),
       apiGet('fin_subcategorias?select=*&order=nome'),
       apiGet('fin_centros_custo?select=*&order=nome'),
-      apiGet('fin_formas_pagamento?select=*&order=nome'),
+      apiGet('fin_formas_pagamento?select=*&order=ordem,nome'),
+      apiGet('fin_canais?select=*&order=ordem,id'),
     ]);
-    LISTAS = { categorias, subcategorias, centros, formas };
-  }catch(e){ LISTAS = { categorias: [], subcategorias: [], centros: [], formas: [] }; }
+    LISTAS = { categorias, subcategorias, centros, formas, canais };
+  }catch(e){ LISTAS = { categorias: [], subcategorias: [], centros: [], formas: [], canais: [] }; }
 }
 const nomeCategoria = id => (LISTAS.categorias.find(c => c.id === id) || {}).nome || '';
 const nomeCategoriaCurta = id => nomeCategoria(id).replace(/ — .*$/, '');
@@ -725,6 +750,367 @@ async function compraApagar(){
     fecharModal('modalCompra'); toast('Compra apagada'); renderCompras();
   }catch(e){ document.getElementById('cErro').textContent = 'Não apaguei: ' + e.message; }
 }
+// ===================================================================================
+//  PAINEL — página inicial (volta-se a ele clicando no logo)
+//   Receita = faturamento (Vendas) · Despesas = compras pela data da compra
+//   Resultado = Receita − Despesas · CMV % = compras da categoria CMV ÷ faturamento
+// ===================================================================================
+let graficos = [];
+const MES_CURTO = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const pct1 = v => (Number(v) || 0).toLocaleString('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+function mesesAte(mes, n){
+  const [a, m] = mes.split('-').map(Number), r = [];
+  for(let i = n - 1; i >= 0; i--){ const d = new Date(a, m - 1 - i, 1); r.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
+  return r;
+}
+function variacao(atual, anterior){
+  if(!anterior) return '<span class="sub">sem mês anterior para comparar</span>';
+  const p = (atual - anterior) / Math.abs(anterior) * 100;   // ▲ = melhorou, ▼ = piorou
+  return `<span class="var ${p >= 0 ? 'up' : 'down'}">${p >= 0 ? '▲' : '▼'} ${pct1(Math.abs(p))}% vs mês anterior</span>`;
+}
+
+async function renderPainel(){
+  const meses = mesesAte(mesAtual, 6);
+  const ini = meses[0] + '-01', fim = limitesMes(mesAtual)[1];
+  const anos = [...new Set(meses.map(m => m.slice(0, 4)))];
+  const [vendas, compras, metas] = await Promise.all([
+    apiGet(`fin_vendas_dia?select=*&data=gte.${ini}&data=lt.${fim}&order=data`),
+    apiGet(`fin_compras?select=data,valor,categoria_id&data=gte.${ini}&data=lt.${fim}`),
+    apiGet(`fin_metas?select=*&ano=in.(${anos.join(',')})`).catch(() => []),
+  ]);
+  const metaDe = m => metas.find(x => x.ano === +m.slice(0, 4) && x.mes === +m.slice(5, 7)) || {};
+  const ouNulo = v => v === null || v === undefined || v === '' ? null : num(v);
+  const serie = meses.map(m => {
+    const rec = vendas.filter(v => v.data.startsWith(m)).reduce((s, v) => s + calcVenda(v).fat, 0);
+    const desp = compras.filter(c => c.data.startsWith(m)).reduce((s, c) => s + num(c.valor), 0);
+    const mt = metaDe(m);
+    return { mes: m, label: MES_CURTO[+m.slice(5, 7) - 1] + '/' + m.slice(2, 4), rec: r2(rec), desp: r2(desp), res: r2(rec - desp),
+             mRec: ouNulo(mt.meta_vendas), mDesp: ouNulo(mt.meta_despesas), mRes: ouNulo(mt.meta_resultado) };
+  });
+  const cur = serie[5], ant = serie[4];
+  const vm = vendas.filter(v => v.data.startsWith(mesAtual)).sort((a, b) => a.data < b.data ? -1 : 1);
+  const cm = compras.filter(c => c.data.startsWith(mesAtual));
+  const cmv = cm.filter(c => c.categoria_id === 1).reduce((s, c) => s + num(c.valor), 0);
+  const cmvPct = cur.rec ? cmv / cur.rec * 100 : 0;
+  const dias = vm.filter(v => calcVenda(v).fat > 0).length;
+
+  let metaHtml;
+  if(cur.mRec){
+    const p = cur.rec / cur.mRec * 100, falta = cur.mRec - cur.rec;
+    metaHtml = `<div class="meta-box">
+      <div class="meta-head"><span><strong>Meta de vendas — ${nomeMes(mesAtual)}</strong></span>
+        <span>${eur(cur.rec)} de ${eur(cur.mRec)} · <strong>${Math.round(p)}%</strong></span></div>
+      <div class="meta-bar"><span class="${p >= 100 ? 'ok' : ''}" style="width:${Math.min(p, 100)}%"></span></div>
+      <p class="nota" style="margin:8px 0 0;">${falta > 0 ? `Faltam <strong>${eur(falta)}</strong> para bater a meta.` : `Meta batida 🎉 — <strong>${eur(-falta)}</strong> acima.`}</p>
+    </div>`;
+  }else{
+    metaHtml = `<div class="meta-box nota">Sem meta de vendas para ${nomeMes(mesAtual)}. ${souMaster() ? `<button class="link" onclick="abaAdmin='metas';irPara('admin')">Definir em Administração › Metas</button>` : ''}</div>`;
+  }
+
+  document.getElementById('conteudo').innerHTML = `
+    <div class="barra">${seletorMes('renderPainel')}</div>
+    <p class="nota" style="margin:-8px 0 12px;">Indicadores de <strong>${nomeMes(mesAtual)}</strong>.</p>
+    <div class="kpis">
+      <div class="kpi"><div class="rot">Faturamento</div><div class="val">${eur(cur.rec)}</div>${variacao(cur.rec, ant.rec)}</div>
+      <div class="kpi"><div class="rot">Resultado do mês</div><div class="val ${cur.res < 0 ? 'neg' : 'pos'}">${eur(cur.res)}</div>${variacao(cur.res, ant.res)}</div>
+      <div class="kpi"><div class="rot">CMV (% do faturamento)</div><div class="val ${cmvPct > 35 ? 'neg' : 'pos'}">${pct1(cmvPct)}%</div><div class="sub">referência saudável: ~30%</div></div>
+      <div class="kpi"><div class="rot">Média diária</div><div class="val">${eur(dias ? cur.rec / dias : 0)}</div><div class="sub">${dias} dia(s) com venda</div></div>
+    </div>
+    ${metaHtml}
+    <div class="graficos">
+      <div class="grafico largo"><h3>Receita × Despesas — últimos 6 meses</h3><div class="cw"><canvas id="gMensal"></canvas></div></div>
+      <div class="grafico"><h3>Vendas por canal</h3><div class="cw"><canvas id="gCanais"></canvas></div></div>
+      <div class="grafico"><h3>Despesas por categoria</h3><div class="cw"><canvas id="gCategorias"></canvas></div></div>
+      <div class="grafico largo"><h3>Faturamento diário do mês</h3><div class="cw"><canvas id="gDiario"></canvas></div></div>
+    </div>`;
+
+  graficos.forEach(g => g.destroy()); graficos = [];
+  if(typeof Chart === 'undefined'){
+    document.querySelectorAll('.grafico .cw').forEach(el => el.innerHTML = '<p class="nota">Não consegui carregar os gráficos (sem internet?).</p>');
+    return;
+  }
+  const VERDE = '#2E7D4F', VERDE_ESC = '#1F5A38', CINZA = '#C9D6CD', OURO = '#C8A13A', TERRA = '#C2603A';
+  const PALETA = ['#2E7D4F', '#7FB893', '#1F5A38', '#C8A13A', '#3F8F9A', '#C2603A', '#A9C9B4', '#7E8A84', '#5E6E3A'];
+  Chart.defaults.font.family = 'Inter, sans-serif';
+  Chart.defaults.color = '#66736B';
+  const dinheiro = { callbacks: { label: c => (c.dataset.label ? c.dataset.label + ': ' : '') + eur(c.parsed.y ?? c.parsed.x ?? c.parsed) } };
+
+  graficos.push(new Chart(document.getElementById('gMensal'), {
+    data: { labels: serie.map(s => s.label), datasets: [
+      { type: 'bar', label: 'Receita', data: serie.map(s => s.rec), backgroundColor: VERDE, borderRadius: 4, order: 3 },
+      { type: 'bar', label: 'Despesas', data: serie.map(s => s.desp), backgroundColor: CINZA, borderRadius: 4, order: 3 },
+      { type: 'line', label: 'Resultado', data: serie.map(s => s.res), borderColor: VERDE_ESC, backgroundColor: VERDE_ESC, tension: .3, borderWidth: 2, pointRadius: 3, order: 1 },
+      { type: 'line', label: 'Meta receita', data: serie.map(s => s.mRec), borderColor: VERDE, borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, spanGaps: true, order: 2 },
+      { type: 'line', label: 'Meta despesas', data: serie.map(s => s.mDesp), borderColor: '#8A978F', borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, spanGaps: true, order: 2 },
+      { type: 'line', label: 'Meta resultado', data: serie.map(s => s.mRes), borderColor: OURO, borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0, spanGaps: true, order: 2 },
+    ].filter(d => !d.label.startsWith('Meta') || d.data.some(x => x !== null)) },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: dinheiro, legend: { position: 'bottom' } } },
+  }));
+
+  const soma = k => vm.reduce((s, v) => s + num(v[k]), 0);
+  const canais = [['Balcão (sistema)', soma('sistema')], ['M20', soma('m20')], ['Uber', soma('uber')], ['Bolt', soma('bolt')], ['Glovo', soma('glovo')]].filter(c => c[1] > 0);
+  graficos.push(new Chart(document.getElementById('gCanais'), {
+    type: 'doughnut',
+    data: { labels: canais.map(c => c[0]), datasets: [{ data: canais.map(c => r2(c[1])), backgroundColor: PALETA }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: c => c.label + ': ' + eur(c.parsed) + ' (' + pct1(c.parsed / (cur.rec || 1) * 100) + '%)' } } } },
+  }));
+
+  const porCat = {};
+  cm.forEach(c => { const k = nomeCategoria(c.categoria_id) || 'Sem categoria'; porCat[k] = (porCat[k] || 0) + num(c.valor); });
+  const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
+  graficos.push(new Chart(document.getElementById('gCategorias'), {
+    type: 'bar',
+    data: { labels: cats.map(c => c[0].replace(/ — .*$/, '')), datasets: [{ label: 'Despesa', data: cats.map(c => r2(c[1])), backgroundColor: cats.map(c => c[0].startsWith('CMV') ? TERRA : VERDE), borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: dinheiro } },
+  }));
+
+  graficos.push(new Chart(document.getElementById('gDiario'), {
+    type: 'line',
+    data: { labels: vm.map(v => +v.data.slice(8, 10)), datasets: [{ label: 'Faturamento', data: vm.map(v => r2(calcVenda(v).fat)), borderColor: VERDE, backgroundColor: 'rgba(46,125,79,.12)', fill: true, tension: .3, pointRadius: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => 'Dia ' + c[0].label + ' (' + diaSemana(vm[c[0].dataIndex].data) + ')', label: c => eur(c.parsed.y) } } } },
+  }));
+}
+
+// ===================================================================================
+//  ADMINISTRAÇÃO — listas, metas, regras, utilizadores
+//  Só o master altera (a guarda da base bloqueia o adm); o adm vê tudo em modo leitura.
+// ===================================================================================
+let abaAdmin = 'categorias', anoMetas = Number(hojeISO().slice(0, 4)), filtroSubcat = '', regraEditando = null;
+const ABAS_ADMIN = [
+  ['categorias', 'Categorias'], ['subcategorias', 'Subcategorias'], ['centros', 'Áreas'], ['canais', 'Canais de venda'],
+  ['formas', 'Formas de pagamento'], ['iva', 'IVA das vendas'], ['metas', 'Metas mensais'],
+  ['regras', 'Regras de classificação'], ['usuarios', 'Utilizadores'],
+];
+const PAPEIS_CANAL = { dinheiro: 'Dinheiro', cartao: 'Cartões', gorjeta: 'Gorjeta', m20: 'M20 / vale-refeição', delivery: 'Delivery', outro: 'Outro' };
+
+async function renderAdmin(){
+  const ro = !souMaster();
+  const corpo = await ADMIN_ABAS[abaAdmin](ro);
+  document.getElementById('conteudo').innerHTML = `
+    <div class="subnav">${ABAS_ADMIN.map(([id, nome]) => `<button class="${id === abaAdmin ? 'active' : ''}" onclick="abaAdmin='${id}';renderAdmin()">${nome}</button>`).join('')}</div>
+    ${ro ? '<div class="so-leitura">Modo consulta: só o administrador master altera estas listas e configurações.</div>' : ''}
+    ${corpo}`;
+}
+// grava, confere que a base aceitou, recarrega listas e o ecrã
+async function adminGravar(caminho, metodo, corpo, msg, prefer){
+  try{
+    const linhas = await apiEscrever(caminho, metodo, corpo, prefer);
+    confirmarGravado(linhas, metodo === 'DELETE' ? 'apagar' : 'alterar isto');
+    await carregarListas();
+    toast(msg || 'Guardado ✓');
+    await renderAdmin();
+    return true;
+  }catch(e){ alert('Não guardei: ' + e.message); return false; }
+}
+const vAdm = id => (document.getElementById(id) || {}).value?.trim() || '';
+const btnEstado = (tabela, x, ro) => ro ? '' :
+  `<button onclick="adminGravar('${tabela}?id=eq.${x.id}','PATCH',{ativo:${!x.ativo}},'${x.ativo ? 'Desativado' : 'Ativado'} ✓')">${x.ativo ? 'Desativar' : 'Ativar'}</button>`;
+const tdEstado = x => `<td class="e">${x.ativo ? '<span class="tag">ativo</span>' : '<span class="nota">inativo</span>'}</td>`;
+function adminRenomear(tabela, id, atual){
+  const novo = prompt('Novo nome:', atual);
+  if(novo && novo.trim() && novo.trim() !== atual) adminGravar(`${tabela}?id=eq.${id}`, 'PATCH', { nome: novo.trim() }, 'Nome alterado ✓');
+}
+function listaSimples(tabela, lista, ro, rotulo, exemplo){
+  const linhas = lista.map(x => `<tr class="${x.ativo ? '' : 'inativo'}">
+      <td class="e">${esc(x.nome)}</td>${tdEstado(x)}
+      <td class="acoes e">${ro ? '' : `<button onclick="adminRenomear('${tabela}',${x.id},${esc(JSON.stringify(x.nome))})">renomear</button>`}${btnEstado(tabela, x, ro)}</td>
+    </tr>`).join('');
+  return `
+    ${ro ? '' : `<div class="barra">
+      <label class="field">${rotulo}<input type="text" id="admNovo" placeholder="${exemplo}" style="min-width:260px"></label>
+      <button class="btn" onclick="adminAdicionar('${tabela}',{nome:vAdm('admNovo')})">Adicionar</button>
+    </div>`}
+    <p class="nota">Desativar tira da lista de escolha nos lançamentos, mas mantém o histórico.</p>
+    <div class="tabela-wrap"><table class="t">
+      <thead><tr><th class="e">Nome</th><th class="e">Estado</th><th></th></tr></thead>
+      <tbody>${linhas || '<tr><td colspan="3" class="vazio">Nenhum.</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+const ADMIN_ABAS = {
+  categorias: async ro => listaSimples('fin_categorias', LISTAS.categorias, ro, 'Nova categoria de despesa', 'ex.: Marketing'),
+  centros: async ro => listaSimples('fin_centros_custo', LISTAS.centros, ro, 'Nova área (centro de custo)', 'ex.: Esplanada'),
+
+  subcategorias: async ro => {
+    const subs = LISTAS.subcategorias.filter(s => !filtroSubcat || String(s.categoria_id) === filtroSubcat);
+    const linhas = subs.map(s => `<tr class="${s.ativo ? '' : 'inativo'}">
+        <td class="e">${esc(s.nome)}</td>
+        <td class="e">${esc(nomeCategoriaCurta(s.categoria_id))}</td>
+        <td>${ro ? fmt(s.iva_percentual) + '%' : `<input type="number" step="0.01" min="0" max="100" id="iva_${s.id}" value="${num(s.iva_percentual)}" style="width:80px;text-align:right"> %
+            <span class="acoes"><button onclick="adminGravar('fin_subcategorias?id=eq.${s.id}','PATCH',{iva_percentual:num(vAdm('iva_${s.id}'))},'IVA guardado ✓')">guardar</button></span>`}</td>
+        ${tdEstado(s)}
+        <td class="acoes e">${ro ? '' : `<button onclick="adminRenomear('fin_subcategorias',${s.id},${esc(JSON.stringify(s.nome))})">renomear</button>`}${btnEstado('fin_subcategorias', s, ro)}</td>
+      </tr>`).join('');
+    return `
+      ${ro ? '' : `<div class="barra">
+        <label class="field">Categoria<select id="admSubCat">${opcoes(LISTAS.categorias, filtroSubcat, '— categoria —')}</select></label>
+        <label class="field">Nova subcategoria<input type="text" id="admSubNome" placeholder="ex.: Lacticínios"></label>
+        <label class="field">IVA %<input type="number" step="0.01" min="0" max="100" id="admSubIva" value="23" style="width:90px"></label>
+        <button class="btn" onclick="adminNovaSub()">Adicionar</button>
+      </div>`}
+      <div class="barra">
+        <label class="field">Mostrar<select onchange="filtroSubcat=this.value;renderAdmin()">${opcoes(LISTAS.categorias, filtroSubcat, 'todas as categorias', true)}</select></label>
+      </div>
+      <p class="nota">O IVA % de cada subcategoria calcula o IVA das compras automaticamente.</p>
+      <div class="tabela-wrap"><table class="t">
+        <thead><tr><th class="e">Subcategoria</th><th class="e">Categoria</th><th>IVA %</th><th class="e">Estado</th><th></th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="5" class="vazio">Nenhuma.</td></tr>'}</tbody>
+      </table></div>`;
+  },
+
+  canais: async ro => {
+    const linhas = LISTAS.canais.map(c => `<tr class="${c.ativo ? '' : 'inativo'}">
+        <td class="e">${esc(c.nome)}</td><td class="e">${esc(PAPEIS_CANAL[c.tipo] || c.tipo)}</td>${tdEstado(c)}
+        <td class="acoes e">${ro ? '' : `<button onclick="adminRenomear('fin_canais',${c.id},${esc(JSON.stringify(c.nome))})">renomear</button>`}</td>
+      </tr>`).join('');
+    return `
+      <p class="nota">Os canais correspondem às colunas da conferência de caixa em Vendas (Dinheiro, Cartões, Gorjetas, M20, Uber, Bolt, Glovo).
+      Para acrescentar um canal novo (ex.: outra plataforma de delivery) é preciso uma coluna nova em Vendas — peça ao Claude.</p>
+      <div class="tabela-wrap"><table class="t">
+        <thead><tr><th class="e">Nome</th><th class="e">Papel</th><th class="e">Estado</th><th></th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="4" class="vazio">Nenhum.</td></tr>'}</tbody>
+      </table></div>`;
+  },
+
+  formas: async ro => {
+    const linhas = LISTAS.formas.map(f => `<tr class="${f.ativo ? '' : 'inativo'}">
+        <td class="e">${esc(f.nome)}</td>
+        <td>${ro ? (f.ordem ?? 0) : `<input type="number" id="ord_${f.id}" value="${f.ordem ?? 0}" style="width:70px;text-align:right" onchange="adminGravar('fin_formas_pagamento?id=eq.${f.id}','PATCH',{ordem:Math.round(num(this.value))},'Ordem guardada ✓')">`}</td>
+        ${tdEstado(f)}
+        <td class="acoes e">${btnEstado('fin_formas_pagamento', f, ro)}${ro ? '' : `<button onclick="if(confirm('Excluir a forma «'+${esc(JSON.stringify(f.nome))}+'»? As compras antigas mantêm o texto.'))adminGravar('fin_formas_pagamento?id=eq.${f.id}','DELETE',null,'Forma excluída')">excluir</button>`}</td>
+      </tr>`).join('');
+    return `
+      ${ro ? '' : `<div class="barra">
+        <label class="field">Nova forma de pagamento<input type="text" id="admNovo" placeholder="ex.: MB Way"></label>
+        <label class="field">Ordem<input type="number" id="admOrdem" value="0" style="width:80px"></label>
+        <button class="btn" onclick="adminAdicionar('fin_formas_pagamento',{nome:vAdm('admNovo'),ordem:Math.round(num(vAdm('admOrdem')))})">Adicionar</button>
+      </div>`}
+      <p class="nota">Usadas nas compras. Desativar tira do menu e mantém o histórico; a ordem (menor primeiro) define a posição no menu.</p>
+      <div class="tabela-wrap"><table class="t">
+        <thead><tr><th class="e">Nome</th><th>Ordem</th><th class="e">Estado</th><th></th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="4" class="vazio">Nenhuma.</td></tr>'}</tbody>
+      </table></div>`;
+  },
+
+  iva: async ro => {
+    const cfg = await apiGet('fin_config?select=*&chave=eq.iva_vendas_percentual').catch(() => []);
+    const atual = cfg[0] ? num(cfg[0].valor) : 13;
+    return `<div class="card" style="max-width:520px;">
+      <p class="nota" style="margin-top:0;">Taxa aplicada sobre o faturamento das vendas na Apuração de IVA (Relatórios).</p>
+      <div class="barra" style="margin-bottom:0;">
+        <label class="field">IVA das vendas (%)<input type="number" step="0.01" min="0" max="100" id="admIvaVendas" value="${atual}" ${ro ? 'disabled' : ''} style="width:120px"></label>
+        ${ro ? '' : `<button class="btn" onclick="adminGravar('fin_config?on_conflict=chave','POST',{chave:'iva_vendas_percentual',valor:String(num(vAdm('admIvaVendas')))},'IVA das vendas guardado ✓','resolution=merge-duplicates,return=representation')">Guardar</button>`}
+      </div></div>`;
+  },
+
+  metas: async ro => {
+    const metas = await apiGet(`fin_metas?select=*&ano=eq.${anoMetas}`).catch(() => []);
+    const campo = (m, k, min) => {
+      const x = metas.find(y => y.mes === m), v = x && x[k] !== null && x[k] !== undefined ? num(x[k]) : '';
+      return `<td><input type="number" step="0.01" ${min ? 'min="0"' : ''} id="meta_${k}_${m}" value="${v}" placeholder="—" ${ro ? 'disabled' : ''} style="width:130px;text-align:right"></td>`;
+    };
+    const linhas = MESES_NOME.map((nome, i) => `<tr><td class="e">${nome}</td>${campo(i + 1, 'meta_vendas', 1)}${campo(i + 1, 'meta_despesas', 1)}${campo(i + 1, 'meta_resultado')}</tr>`).join('');
+    return `
+      <div class="barra">
+        <label class="field">Ano<input type="number" value="${anoMetas}" style="width:100px" onchange="anoMetas=Math.round(num(this.value))||anoMetas;renderAdmin()"></label>
+        <div class="esp"></div>
+        ${ro ? '' : '<button class="btn" onclick="adminGuardarMetas()">Guardar metas</button>'}
+      </div>
+      <p class="nota">Meta de receita, despesas e resultado de cada mês (em branco = sem meta). A receita vira a barra de progresso do Painel; as três aparecem como linhas de referência no gráfico de 6 meses.</p>
+      <div class="tabela-wrap" style="max-width:640px;"><table class="t">
+        <thead><tr><th class="e">Mês</th><th>Receita (€)</th><th>Despesas (€)</th><th>Resultado (€)</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table></div>`;
+  },
+
+  regras: async ro => {
+    const regras = await apiGet('fin_regras?select=*&order=ordem,id').catch(() => []);
+    const r = regraEditando || {};
+    const linhas = regras.map(x => `<tr class="${x.ativo ? '' : 'inativo'}">
+        <td>${x.ordem}</td><td class="e"><b>${esc(x.nome)}</b></td><td class="e txt">${esc(x.palavras)}</td>
+        <td class="e">${esc(x.fornecedor || '')}</td><td class="e">${esc(nomeCategoriaCurta(x.categoria_id))}</td><td class="e">${esc(nomeCentro(x.centro_custo_id))}</td>
+        ${tdEstado(x)}
+        <td class="acoes e">${ro ? '' : `<button onclick='regraEditando=${esc(JSON.stringify(x))};renderAdmin()'>editar</button>${btnEstado('fin_regras', x, ro)}<button onclick="if(confirm('Apagar a regra?'))adminGravar('fin_regras?id=eq.${x.id}','DELETE',null,'Regra apagada')">apagar</button>`}</td>
+      </tr>`).join('');
+    return `
+      <p class="nota">Quando uma fatura lida contém alguma das palavras-chave, o sistema preenche automaticamente o fornecedor, a categoria e a área. As regras são avaliadas por ordem (a primeira que casar vence). Vão ser usadas pela leitura de faturas por IA nas Compras.</p>
+      ${ro ? '' : `<div class="card">
+        <div class="grupo-tit" style="margin-top:0;">${r.id ? 'Editar regra' : 'Nova regra'}</div>
+        <div class="grade">
+          <label class="field">Nome da regra<input type="text" id="rgNome" value="${esc(r.nome || '')}" placeholder="ex.: Makro"></label>
+          <label class="field">Palavras-chave (separadas por vírgula)<input type="text" id="rgPalavras" value="${esc(r.palavras || '')}" placeholder="ex.: MAKRO, Makro Cash"></label>
+        </div>
+        <div class="grade">
+          <label class="field">Fornecedor<input type="text" id="rgFornecedor" value="${esc(r.fornecedor || '')}"></label>
+          <label class="field">Categoria<select id="rgCategoria">${opcoes(LISTAS.categorias, r.categoria_id || '', '— nenhuma —')}</select></label>
+          <label class="field">Área<select id="rgCentro">${opcoes(LISTAS.centros, r.centro_custo_id || '', '— nenhuma —')}</select></label>
+          <label class="field">Ordem (menor primeiro)<input type="number" id="rgOrdem" value="${r.ordem ?? 0}"></label>
+        </div>
+        <div class="modal-acoes" style="margin-top:0;">
+          ${r.id ? '<button class="btn sec" onclick="regraEditando=null;renderAdmin()">Cancelar</button>' : ''}
+          <button class="btn" onclick="adminGuardarRegra()">${r.id ? 'Guardar alterações' : 'Criar regra'}</button>
+        </div>
+      </div>`}
+      <div class="tabela-wrap"><table class="t">
+        <thead><tr><th>Ordem</th><th class="e">Regra</th><th class="e">Palavras-chave</th><th class="e">Fornecedor</th><th class="e">Categoria</th><th class="e">Área</th><th class="e">Estado</th><th></th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="8" class="vazio">Nenhuma regra ainda.</td></tr>'}</tbody>
+      </table></div>`;
+  },
+
+  usuarios: async () => {
+    const admins = await apiGet('admins?select=*').catch(() => []);
+    const linhas = admins.sort((a, b) => (a.nivel === 'master' ? -1 : 1) - (b.nivel === 'master' ? -1 : 1)).map(a => `<tr>
+        <td class="e">${esc(a.nome || '')}</td><td class="e">${esc(a.email)}</td>
+        <td class="e"><span class="badge ${a.nivel === 'master' ? 'master' : ''}">${a.nivel === 'master' ? 'admin master' : 'admin'}</span></td>
+      </tr>`).join('');
+    return `
+      <p class="nota">Entram no financeiro os administradores da app de estoque, com o mesmo email e password.
+      Para dar ou tirar acesso, ou trocar a password, use a app de estoque (Utilizadores).<br>
+      <b>Admin master</b>: tudo. <b>Admin</b>: vê tudo, lança e corrige vendas e compras (cada correção fica registada), mas não apaga nem altera listas e configurações.</p>
+      <div class="tabela-wrap" style="max-width:640px;"><table class="t">
+        <thead><tr><th class="e">Nome</th><th class="e">Email</th><th class="e">Perfil</th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="3" class="vazio">—</td></tr>'}</tbody>
+      </table></div>`;
+  },
+};
+
+function adminNovaSub(){
+  const cat = vAdm('admSubCat'), nome = vAdm('admSubNome');
+  if(!cat || !nome){ alert('Escolha a categoria e escreva o nome.'); return; }
+  adminGravar('fin_subcategorias', 'POST', { categoria_id: Number(cat), nome, iva_percentual: num(vAdm('admSubIva')) }, 'Subcategoria adicionada ✓');
+}
+async function adminGuardarMetas(){
+  const existentes = await apiGet(`fin_metas?select=mes&ano=eq.${anoMetas}`).catch(() => []);
+  const ler = (k, m) => { const v = vAdm(`meta_${k}_${m}`); return v === '' ? null : r2(num(v)); };
+  const linhas = [];
+  for(let m = 1; m <= 12; m++){
+    const l = { ano: anoMetas, mes: m, meta_vendas: ler('meta_vendas', m), meta_despesas: ler('meta_despesas', m), meta_resultado: ler('meta_resultado', m) };
+    if(l.meta_vendas !== null || l.meta_despesas !== null || l.meta_resultado !== null || existentes.some(e => e.mes === m)) linhas.push(l);
+  }
+  if(!linhas.length){ toast('Nada para guardar'); return; }
+  adminGravar('fin_metas?on_conflict=ano,mes', 'POST', linhas, `Metas de ${anoMetas} guardadas ✓`, 'resolution=merge-duplicates,return=representation');
+}
+async function adminGuardarRegra(){
+  const reg = {
+    nome: vAdm('rgNome'), palavras: vAdm('rgPalavras'), fornecedor: vAdm('rgFornecedor') || null,
+    categoria_id: vAdm('rgCategoria') ? Number(vAdm('rgCategoria')) : null,
+    centro_custo_id: vAdm('rgCentro') ? Number(vAdm('rgCentro')) : null, ordem: Math.round(num(vAdm('rgOrdem'))),
+  };
+  if(!reg.nome || !reg.palavras){ alert('Escreva o nome e pelo menos uma palavra-chave.'); return; }
+  const id = regraEditando && regraEditando.id;
+  if(await adminGravar(id ? `fin_regras?id=eq.${id}` : 'fin_regras', id ? 'PATCH' : 'POST', reg, id ? 'Regra atualizada ✓' : 'Regra criada ✓')){
+    regraEditando = null; renderAdmin();
+  }
+}
+// adicionar a uma lista, sem nomes repetidos (ex.: reativa em vez de duplicar)
+function adminAdicionar(tabela, corpo){
+  if(!corpo.nome) return;
+  const lista = { fin_categorias: LISTAS.categorias, fin_centros_custo: LISTAS.centros, fin_formas_pagamento: LISTAS.formas }[tabela] || [];
+  const igual = lista.find(x => x.nome.trim().toLowerCase() === corpo.nome.toLowerCase());
+  if(igual){ alert(`Já existe «${igual.nome}»${igual.ativo ? '' : ' (inativo — use Ativar)'}.`); return; }
+  adminGravar(tabela, 'POST', corpo, 'Adicionado ✓');
+}
+
 window.addEventListener('hashchange', () => { if(nivelAtual) irPara(lerVistaDoEndereco() || 'painel'); });
 
 retomarSessao();

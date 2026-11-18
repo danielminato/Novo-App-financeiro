@@ -48,7 +48,17 @@ Painel · Vendas · Compras (com leitura de faturas por IA) · Aprendizado · Re
 - [x] Compras (lançar, corrigir, filtros, IVA sugerido)
 - [ ] Compras: leitura de faturas por IA (Edge Function com `ANTHROPIC_API_KEY` nos secrets) e comprovantes
 - [x] Vendas
-- [ ] Painel e Relatórios
+- [x] Painel (18/11/2026) — página inicial, sem botão no menu; volta-se a ele clicando no logo.
+      Receita = faturamento; Despesas = compras pela data da compra; Resultado = R − D;
+      CMV % = compras da categoria 1 ÷ faturamento. Out/2026 confere com o sistema atual.
+      Diferença intencional: a variação do resultado mostra ▼ quando piora (o sistema atual
+      mostrava ▲ num resultado mais negativo).
+- [x] Administração (18/11/2026) — categorias, subcategorias (IVA %), áreas, canais (só
+      renomear: são colunas fixas em Vendas), formas de pagamento, IVA das vendas (`fin_config`),
+      metas (receita/despesas/resultado), regras de classificação (`fin_regras`, para a IA),
+      utilizadores (só consulta: geridos na app de estoque). O adm vê em modo consulta.
+      Migração `2026-11-18_fin_painel_admin.sql` aplicada; metas de 2026 copiadas.
+- [ ] Relatórios
 - [ ] Conciliação bancária
 - [ ] Validação mês a mês contra o sistema atual
 - [ ] Integração na app de estoque
