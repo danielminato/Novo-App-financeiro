@@ -77,6 +77,8 @@ Painel · Vendas · Compras (com leitura de faturas por IA) · Aprendizado · Re
       — vendas dia a dia (todas as colunas), totais de compras, Painel (KPIs, meta, 4 gráficos),
       relatório de vendas, fluxo, DRE (valores e %), IVA 2026 — sem diferenças.
       Dados suspeitos (iguais nos dois sistemas): 3 compras com data em ago/2025 e pagamento em
-      2026 (Continente Matosinhos 27,98; Auchan Gaia 2,97; Normal Gaia 2,90) — ano trocado?
+      2026 (Continente Matosinhos 27,98; Auchan Gaia 2,97; Normal Gaia 2,90) — ano trocado.
+      CORRIGIDO na app nova em 18/11/2026 (ids 1–3 → ago/2026; compras ago/2026 = 35 965,38).
+      No sistema do Render continuam em 2025 até o Daniel as corrigir lá.
 - [ ] Validação de novembro completo nas duas apps (fim do mês)
 - [ ] Integração na app de estoque
