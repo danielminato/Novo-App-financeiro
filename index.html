@@ -1140,7 +1140,7 @@ async function aprRecusar(id){
 // ===================================================================================
 let abaRel = 'vendas', anoIva = Number(hojeISO().slice(0, 4)), ivaCtx = null;
 const ABAS_REL = [['vendas', 'Vendas'], ['fluxo', 'Fluxo de Caixa'], ['dre', 'DRE'], ['iva', 'Apuração de IVA']];
-const pctDe = (v, total) => total ? pct1(v / total * 100) + '%' : '—';
+const pctDe = (v, total) => total ? pct1(v / total * 100) + '%' : pct1(0) + '%';   // como o sistema atual: sem receita = 0,0%
 
 async function renderRelatorios(){
   const corpo = await REL_ABAS[abaRel]();
@@ -1229,7 +1229,7 @@ const REL_ABAS = {
       <div class="tabela-wrap" style="max-width:700px;"><table class="t">
         <thead><tr><th class="e">Conta</th><th>Valor</th><th>% receita</th></tr></thead>
         <tbody>
-          ${total('Receita de vendas', R)}
+          <tr><td class="e"><b>Receita de vendas</b></td><td><b>${eur(R)}</b></td><td><b>100%</b></td></tr>
           ${linha('(−) CMV — Custo de Mercadoria Vendida', g.cmv)}
           ${total('= Lucro Bruto', bruto)}
           <tr><td class="e" colspan="3">(−) Despesas operacionais</td></tr>
