@@ -42,9 +42,12 @@ Painel · Vendas · Compras (com leitura de faturas por IA) · Aprendizado · Re
 ## Estado
 - [x] Esqueleto: login, menu, tema verde
 - [ ] Especificação das fórmulas (a partir das páginas copiadas)
-- [ ] Tabelas `fin_*` + importação do backup
-- [ ] Compras (+ IA: Edge Function no Supabase com `ANTHROPIC_API_KEY` nos secrets)
-- [ ] Vendas
+- [x] Tabelas `fin_*` + importação do backup (18/11/2026: 139 vendas, 252 compras;
+      faturamento 129 403,43 €, compras 115 835,45 € — igual ao sistema atual). Guarda de
+      perfis e RLS ativas nas 8 tabelas.
+- [x] Compras (lançar, corrigir, filtros, IVA sugerido)
+- [ ] Compras: leitura de faturas por IA (Edge Function com `ANTHROPIC_API_KEY` nos secrets) e comprovantes
+- [x] Vendas
 - [ ] Painel e Relatórios
 - [ ] Conciliação bancária
 - [ ] Validação mês a mês contra o sistema atual
