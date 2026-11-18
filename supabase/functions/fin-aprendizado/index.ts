@@ -12,7 +12,8 @@
 import Anthropic from "npm:@anthropic-ai/sdk@1.4.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+// chave pública: a que a app envia no cabeçalho "apikey" (publishable); senão a antiga anon
+let CHAVE_PUBLICA = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const MODELO = "claude-opus-5-5";
 const MAX_VOLTAS = 8;
 
@@ -103,7 +104,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
 async function rest(jwt: string, caminho: string, init?: RequestInit) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${caminho}`, {
     ...init,
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${jwt}`, "Content-Type": "application/json", ...(init?.headers || {}) },
+    headers: { apikey: CHAVE_PUBLICA, Authorization: `Bearer ${jwt}`, "Content-Type": "application/json", ...(init?.headers || {}) },
   });
   const t = await r.text();
   if (!r.ok) throw new Error(`${r.status}: ${t.slice(0, 300)}`);
@@ -179,6 +180,8 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ erro: "use POST" }, 405);
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!jwt) return json({ erro: "sem sessão" }, 401);
+  const apikey = req.headers.get("apikey");
+  if (apikey && apikey.startsWith("sb_publishable_")) CHAVE_PUBLICA = apikey;
 
   try {
     // Só o master
