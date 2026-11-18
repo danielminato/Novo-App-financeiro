@@ -73,5 +73,10 @@ Painel · Vendas · Compras (com leitura de faturas por IA) · Aprendizado · Re
       conferem com o sistema atual. O guia "Listas I e II" (IVA por produto) fica de fora
       por decisão do Daniel (18/11/2026): ele tem a lista e pede quando precisar.
 - [ ] Conciliação bancária
-- [ ] Validação mês a mês contra o sistema atual
+- [x] Validação contra o backup (18/11/2026): 8 meses (ago/2025, mai–nov/2026), ~2 560 números
+      — vendas dia a dia (todas as colunas), totais de compras, Painel (KPIs, meta, 4 gráficos),
+      relatório de vendas, fluxo, DRE (valores e %), IVA 2026 — sem diferenças.
+      Dados suspeitos (iguais nos dois sistemas): 3 compras com data em ago/2025 e pagamento em
+      2026 (Continente Matosinhos 27,98; Auchan Gaia 2,97; Normal Gaia 2,90) — ano trocado?
+- [ ] Validação de novembro completo nas duas apps (fim do mês)
 - [ ] Integração na app de estoque
