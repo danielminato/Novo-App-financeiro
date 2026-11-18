@@ -59,6 +59,46 @@
   button.btn:hover{background:var(--verde-escuro);}
   .nota{font-size:12px;color:var(--ink-soft);}
   .erro{color:var(--danger-text);font-size:13px;min-height:18px;margin-top:8px;}
+  /* ---- Barra de filtros, cartões de resumo, tabelas ---- */
+  .barra{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:6px 0 16px;}
+  .barra label.field{margin-bottom:0;}
+  .barra .esp{flex:1;}
+  input[type=month],input[type=date],textarea{font-family:'Inter',sans-serif;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);}
+  textarea{width:100%;min-height:60px;resize:vertical;}
+  button.btn.sec{background:transparent;color:var(--verde-escuro);}
+  button.btn.sec:hover{background:var(--verde-claro);}
+  button.btn.perigo{background:transparent;border-color:var(--danger-text);color:var(--danger-text);}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+  .kpi .rot{font-size:12px;color:var(--ink-soft);}
+  .kpi .val{font-size:22px;font-weight:600;color:var(--verde-escuro);margin-top:2px;}
+  .kpi .val.neg{color:var(--danger-text);}
+  .kpi .sub{font-size:12px;color:var(--ink-soft);}
+  .tabela-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);}
+  table.t{border-collapse:collapse;width:100%;font-size:13px;}
+  table.t th{background:var(--verde-claro);color:var(--verde-escuro);font-weight:600;text-align:right;padding:8px 10px;white-space:nowrap;position:sticky;top:0;}
+  table.t td{padding:7px 10px;border-top:1px solid var(--line);text-align:right;white-space:nowrap;}
+  table.t th.e, table.t td.e{text-align:left;}
+  table.t td.txt{white-space:normal;min-width:160px;max-width:320px;}
+  table.t tr:hover td{background:#F7FBF8;}
+  table.t tfoot td{font-weight:700;background:#F7FBF8;border-top:2px solid var(--verde);}
+  table.t .bloco{border-left:2px solid var(--line);}
+  .dif-ok{color:var(--ok-text);} .dif-mal{color:var(--danger-text);font-weight:600;}
+  .vazio{padding:24px;text-align:center;color:var(--ink-soft);}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:9px;background:var(--verde-claro);color:var(--verde-escuro);}
+  .acoes button{background:none;border:none;color:var(--verde-escuro);cursor:pointer;font:inherit;font-size:12px;text-decoration:underline;padding:0 4px;}
+  /* ---- Janela (modal) ---- */
+  .modal-bg{position:fixed;inset:0;background:rgba(20,40,28,.35);display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:30px 12px;}
+  .modal-bg.open{display:flex;}
+  .modal-bg .modal{width:100%;max-width:640px;}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px;}
+  .grade label.field input,.grade label.field select{width:100%;}
+  .grupo-tit{font-size:12px;font-weight:600;color:var(--verde-escuro);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;}
+  .calc{display:flex;gap:14px;flex-wrap:wrap;background:var(--verde-claro);border-radius:8px;padding:10px 12px;font-size:13px;margin:4px 0 12px;}
+  .calc b{color:var(--verde-escuro);}
+  .modal-acoes{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;}
+  .modal-acoes .esq{margin-right:auto;}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--verde-escuro);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;display:none;z-index:300;}
   #loginGate{position:fixed;inset:0;background:var(--cream);z-index:100;display:flex;flex-direction:column;overflow-y:auto;}
   #appRoot{display:none;}
   @media (max-width:640px){
@@ -114,6 +154,80 @@
   <nav id="nav"></nav>
   <main id="main"></main>
 </div>
+
+<!-- Janela: vendas do dia -->
+<div class="modal-bg" id="modalVenda">
+  <div class="modal">
+    <h3 id="vTitulo" style="margin-bottom:10px;">Registar vendas do dia</h3>
+    <label class="field" style="max-width:200px;">Dia
+      <input type="date" id="vData" onchange="vendaTrocarData()">
+    </label>
+    <div class="nota" id="vAvisoDia" style="margin:-6px 0 8px;"></div>
+    <div class="grupo-tit">Conferência de caixa (€)</div>
+    <div class="grade">
+      <label class="field">Dinheiro<input type="number" step="0.01" id="vDinheiro" oninput="vendaCalc()"></label>
+      <label class="field">Cartões<input type="number" step="0.01" id="vCartoes" oninput="vendaCalc()"></label>
+      <label class="field">Gorjetas<input type="number" step="0.01" id="vGorjetas" oninput="vendaCalc()"></label>
+      <label class="field">Sistema<input type="number" step="0.01" id="vSistema" oninput="vendaCalc()"></label>
+      <label class="field">M20<input type="number" step="0.01" id="vM20" oninput="vendaCalc()"></label>
+    </div>
+    <div class="grupo-tit">Delivery (€)</div>
+    <div class="grade">
+      <label class="field">Uber<input type="number" step="0.01" id="vUber" oninput="vendaCalc()"></label>
+      <label class="field">Bolt<input type="number" step="0.01" id="vBolt" oninput="vendaCalc()"></label>
+      <label class="field">Glovo<input type="number" step="0.01" id="vGlovo" oninput="vendaCalc()"></label>
+    </div>
+    <div class="calc" id="vCalc"></div>
+    <label class="field">Observações<textarea id="vObs"></textarea></label>
+    <div class="erro" id="vErro"></div>
+    <div class="modal-acoes">
+      <button class="btn perigo esq" id="vApagar" onclick="vendaApagar()">Apagar dia</button>
+      <button class="btn sec" onclick="fecharModal('modalVenda')">Cancelar</button>
+      <button class="btn" onclick="vendaGuardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Janela: compra -->
+<div class="modal-bg" id="modalCompra">
+  <div class="modal">
+    <h3 id="cTitulo" style="margin-bottom:10px;">Nova compra</h3>
+    <div class="grade">
+      <label class="field">Data da compra<input type="date" id="cData"></label>
+      <label class="field">Data do pagamento<input type="date" id="cDataPag"></label>
+      <label class="field">Nº da fatura<input type="text" id="cFatura"></label>
+    </div>
+    <div class="grade">
+      <label class="field">Fornecedor<input type="text" id="cFornecedor" list="listaFornecedores"></label>
+      <label class="field">Descrição<input type="text" id="cDescricao"></label>
+    </div>
+    <datalist id="listaFornecedores"></datalist>
+    <div class="grade">
+      <label class="field">Categoria<select id="cCategoria" onchange="compraTrocarCategoria()"></select></label>
+      <label class="field">Subcategoria<select id="cSubcategoria" onchange="compraSugerirIva()"></select></label>
+      <label class="field">Área (centro de custo)<select id="cCentro"></select></label>
+    </div>
+    <div class="grade">
+      <label class="field">Quem comprou<input type="text" id="cQuemComprou" list="listaPessoas"></label>
+      <label class="field">Quem pagou<input type="text" id="cQuemPagou" list="listaPessoas"></label>
+      <label class="field">Forma de pagamento<select id="cForma"></select></label>
+    </div>
+    <datalist id="listaPessoas"></datalist>
+    <div class="grade">
+      <label class="field">Valor total (com IVA) €<input type="number" step="0.01" id="cValor" oninput="compraSugerirIva()"></label>
+      <label class="field">IVA € <span class="nota" id="cIvaDica"></span><input type="number" step="0.01" id="cIva" oninput="this.dataset.manual='1'"></label>
+    </div>
+    <label class="field">Observações<textarea id="cObs"></textarea></label>
+    <div class="erro" id="cErro"></div>
+    <div class="modal-acoes">
+      <button class="btn perigo esq" id="cApagar" onclick="compraApagar()">Apagar compra</button>
+      <button class="btn sec" onclick="fecharModal('modalCompra')">Cancelar</button>
+      <button class="btn" onclick="compraGuardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <script>
 // ===================================================================================
@@ -192,6 +306,7 @@ async function entrar(){
     return;
   }
   nivelAtual = eu.nivel || 'admin';
+  await carregarListas();
   document.getElementById('loginGate').style.display = 'none';
   document.getElementById('appRoot').style.display = 'block';
   document.getElementById('userEmail').textContent = usuarioEmail;
@@ -247,16 +362,368 @@ function desenharMenu(ativa){
     `<button class="${v.id === ativa ? 'active' : ''}" onclick="irPara('${v.id}')">${v.nome}</button>`).join('');
 }
 
+const RENDER_VISTA = { vendas: renderVendas, compras: renderCompras };
+
 function irPara(id){
   const v = VISTAS.find(x => x.id === id) || VISTAS[0];
   if(location.hash !== '#' + v.id) history.replaceState(null, '', '#' + v.id);
   desenharMenu(v.id);
-  document.getElementById('main').innerHTML = `
+  const main = document.getElementById('main');
+  main.innerHTML = `
     <section class="view active" id="view-${v.id}">
       <h2>${v.nome}</h2>
       <p class="desc">${v.desc}</p>
-      <div class="em-construcao"><strong>Em construção.</strong> Esta secção vai reproduzir a do sistema atual, com os dados já copiados de lá.</div>
+      <div id="conteudo">${RENDER_VISTA[v.id] ? '<p class="nota">A carregar…</p>' : '<div class="em-construcao"><strong>Em construção.</strong> Esta secção vai reproduzir a do sistema atual, com os dados já copiados de lá.</div>'}</div>
     </section>`;
+  if(RENDER_VISTA[v.id]) RENDER_VISTA[v.id]().catch(e => { document.getElementById('conteudo').innerHTML = `<div class="erro">Não consegui carregar: ${esc(e.message)}</div>`; });
+}
+
+// ===================================================================================
+//  Utilitários
+// ===================================================================================
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const num = v => { const x = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(x) ? 0 : x; };
+const r2 = v => Math.round(v * 100) / 100;
+const fmt = v => (Number(v) || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const eur = v => '€ ' + fmt(v);
+const DIAS_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const hojeISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+const dataCurta = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '—';
+const diaSemana = iso => DIAS_SEM[new Date(iso + 'T12:00:00').getDay()];
+function limitesMes(mes){ // 'AAAA-MM' -> [primeiro dia, primeiro dia do mês seguinte]
+  const [a, m] = mes.split('-').map(Number);
+  const prox = m === 12 ? `${a + 1}-01` : `${a}-${String(m + 1).padStart(2, '0')}`;
+  return [`${mes}-01`, `${prox}-01`];
+}
+const nomeMes = mes => MESES_NOME[Number(mes.slice(5, 7)) - 1] + ' de ' + mes.slice(0, 4);
+let mesAtual = hojeISO().slice(0, 7);
+
+function toast(t){ const el = document.getElementById('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => el.style.display = 'none', 2600); }
+function abrirModal(id){ document.getElementById(id).classList.add('open'); }
+function fecharModal(id){ document.getElementById(id).classList.remove('open'); }
+const souMaster = () => nivelAtual === 'master';
+
+async function apiEscrever(caminho, metodo, corpo, prefer){
+  const r = await api(caminho, { method: metodo, headers: { Prefer: prefer || 'return=representation' }, body: corpo ? JSON.stringify(corpo) : undefined });
+  if(!r.ok){
+    const t = await r.text().catch(() => '');
+    throw new Error(r.status === 403 || /row-level security/i.test(t) ? 'sem permissão' : (t || ('erro ' + r.status)));
+  }
+  return r.status === 204 ? [] : r.json().catch(() => []);
+}
+// A guarda da base ignora em silêncio o que o perfil não permite (0 linhas). Deteta-se aqui.
+function confirmarGravado(linhas, acao){
+  if(!Array.isArray(linhas) || linhas.length === 0){
+    throw new Error(`o teu perfil não permite ${acao}. Só o administrador master pode.`);
+  }
+}
+
+// ---- Listas (categorias, subcategorias, centros, formas) ----
+let LISTAS = { categorias: [], subcategorias: [], centros: [], formas: [] };
+async function carregarListas(){
+  try{
+    const [categorias, subcategorias, centros, formas] = await Promise.all([
+      apiGet('fin_categorias?select=*&order=nome'),
+      apiGet('fin_subcategorias?select=*&order=nome'),
+      apiGet('fin_centros_custo?select=*&order=nome'),
+      apiGet('fin_formas_pagamento?select=*&order=nome'),
+    ]);
+    LISTAS = { categorias, subcategorias, centros, formas };
+  }catch(e){ LISTAS = { categorias: [], subcategorias: [], centros: [], formas: [] }; }
+}
+const nomeCategoria = id => (LISTAS.categorias.find(c => c.id === id) || {}).nome || '';
+const nomeCategoriaCurta = id => nomeCategoria(id).replace(/ — .*$/, '');
+const nomeSub = id => (LISTAS.subcategorias.find(c => c.id === id) || {}).nome || '';
+const nomeCentro = id => (LISTAS.centros.find(c => c.id === id) || {}).nome || '';
+function opcoes(lista, selecionado, vazio, mostrarInativo){
+  return `<option value="">${vazio}</option>` + lista
+    .filter(x => x.ativo || mostrarInativo || String(x.id) === String(selecionado) || x.nome === selecionado)
+    .map(x => `<option value="${esc(x.id)}" ${String(x.id) === String(selecionado) ? 'selected' : ''}>${esc(x.nome)}${x.ativo ? '' : ' (inativo)'}</option>`).join('');
+}
+
+function seletorMes(onchange){
+  return `<label class="field">Mês<input type="month" value="${mesAtual}" onchange="mesAtual=this.value||mesAtual;${onchange}()"></label>`;
+}
+
+// ===================================================================================
+//  VENDAS — conferência de caixa diária
+//   Total A = dinheiro + cartões − gorjetas · Total B = sistema + M20 · Diferença = A − B
+//   Faturamento = sistema + M20 + Uber + Bolt + Glovo (as gorjetas não entram)
+// ===================================================================================
+let vendasMes = [], vendaEditando = null;
+const calcVenda = v => {
+  const cartGorj = num(v.cartoes) - num(v.gorjetas);
+  const totalA = num(v.dinheiro) + cartGorj;
+  const totalB = num(v.sistema) + num(v.m20);
+  const delivery = num(v.uber) + num(v.bolt) + num(v.glovo);
+  return { cartGorj, totalA, totalB, dif: r2(totalA - totalB), delivery, fat: totalB + delivery };
+};
+
+async function renderVendas(){
+  const [ini, fim] = limitesMes(mesAtual);
+  vendasMes = await apiGet(`fin_vendas_dia?select=*&data=gte.${ini}&data=lt.${fim}&order=data`);
+  const tot = { dinheiro:0, cartoes:0, gorjetas:0, cartGorj:0, totalA:0, sistema:0, m20:0, totalB:0, dif:0, uber:0, bolt:0, glovo:0, fat:0 };
+  const linhas = vendasMes.map(v => {
+    const c = calcVenda(v);
+    ['dinheiro','cartoes','gorjetas','sistema','m20','uber','bolt','glovo'].forEach(k => tot[k] += num(v[k]));
+    tot.cartGorj += c.cartGorj; tot.totalA += c.totalA; tot.totalB += c.totalB; tot.dif += c.dif; tot.fat += c.fat;
+    const z = x => num(x) ? fmt(x) : '—';
+    return `<tr>
+      <td class="e">${dataCurta(v.data)} <span class="nota">${diaSemana(v.data)}</span></td>
+      <td class="bloco">${fmt(v.dinheiro)}</td><td>${fmt(v.cartoes)}</td><td>${fmt(v.gorjetas)}</td><td>${fmt(c.cartGorj)}</td><td><b>${fmt(c.totalA)}</b></td>
+      <td class="bloco">${fmt(v.sistema)}</td><td>${fmt(v.m20)}</td><td><b>${fmt(c.totalB)}</b></td>
+      <td class="bloco ${Math.abs(c.dif) < 0.005 ? 'dif-ok' : 'dif-mal'}">${fmt(c.dif)}</td>
+      <td class="bloco">${z(v.uber)}</td><td>${z(v.bolt)}</td><td>${z(v.glovo)}</td>
+      <td class="bloco"><b>${fmt(c.fat)}</b></td>
+      <td class="acoes e">${v.observacoes ? `<span title="${esc(v.observacoes)}">📝</span>` : ''}<button onclick="vendaAbrir('${v.data}')">editar</button></td>
+    </tr>`;
+  }).join('');
+  const dias = vendasMes.filter(v => calcVenda(v).fat > 0).length;
+  document.getElementById('conteudo').innerHTML = `
+    <div class="barra">
+      ${seletorMes('renderVendas')}
+      <div class="esp"></div>
+      <button class="btn" onclick="vendaAbrir()">+ Registar dia</button>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="rot">Faturamento — ${nomeMes(mesAtual)}</div><div class="val">${eur(tot.fat)}</div><div class="sub">sistema + M20 + delivery</div></div>
+      <div class="kpi"><div class="rot">Média diária</div><div class="val">${eur(dias ? tot.fat / dias : 0)}</div><div class="sub">${dias} dia(s) com venda</div></div>
+      <div class="kpi"><div class="rot">Delivery</div><div class="val">${eur(tot.uber + tot.bolt + tot.glovo)}</div><div class="sub">Uber ${fmt(tot.uber)} · Bolt ${fmt(tot.bolt)} · Glovo ${fmt(tot.glovo)}</div></div>
+      <div class="kpi"><div class="rot">Diferença de caixa (A − B)</div><div class="val ${Math.abs(tot.dif) < 0.005 ? '' : 'neg'}">${eur(tot.dif)}</div><div class="sub">ideal: 0 · gorjetas ${fmt(tot.gorjetas)}</div></div>
+    </div>
+    <p class="nota" style="margin:-6px 0 10px;"><b>Total A</b> = Dinheiro + Cartões − Gorjetas · <b>Total B</b> = Sistema + M20 · <b>Diferença</b> = A − B (ideal 0). Gorjetas não entram no faturamento.</p>
+    <div class="tabela-wrap">
+      <table class="t">
+        <thead><tr>
+          <th class="e">Dia</th><th class="bloco">Dinheiro</th><th>Cartões</th><th>Gorjetas</th><th>Cart−Gorj</th><th>TOTAL A</th>
+          <th class="bloco">Sistema</th><th>M20</th><th>TOTAL B</th><th class="bloco">Diferença</th>
+          <th class="bloco">Uber</th><th>Bolt</th><th>Glovo</th><th class="bloco">Faturamento</th><th></th>
+        </tr></thead>
+        <tbody>${linhas || '<tr><td colspan="15" class="vazio">Sem vendas registadas neste mês.</td></tr>'}</tbody>
+        ${vendasMes.length ? `<tfoot><tr>
+          <td class="e">Totais</td><td class="bloco">${fmt(tot.dinheiro)}</td><td>${fmt(tot.cartoes)}</td><td>${fmt(tot.gorjetas)}</td><td>${fmt(tot.cartGorj)}</td><td>${fmt(tot.totalA)}</td>
+          <td class="bloco">${fmt(tot.sistema)}</td><td>${fmt(tot.m20)}</td><td>${fmt(tot.totalB)}</td><td class="bloco">${fmt(tot.dif)}</td>
+          <td class="bloco">${fmt(tot.uber)}</td><td>${fmt(tot.bolt)}</td><td>${fmt(tot.glovo)}</td><td class="bloco">${eur(tot.fat)}</td><td></td>
+        </tr></tfoot>` : ''}
+      </table>
+    </div>`;
+}
+
+const CAMPOS_VENDA = { dinheiro:'vDinheiro', cartoes:'vCartoes', gorjetas:'vGorjetas', sistema:'vSistema', m20:'vM20', uber:'vUber', bolt:'vBolt', glovo:'vGlovo' };
+function vendaPreencher(v){
+  vendaEditando = v || null;
+  Object.entries(CAMPOS_VENDA).forEach(([k, id]) => document.getElementById(id).value = v && num(v[k]) ? num(v[k]) : '');
+  document.getElementById('vObs').value = v ? (v.observacoes || '') : '';
+  document.getElementById('vTitulo').textContent = v ? 'Editar vendas do dia' : 'Registar vendas do dia';
+  document.getElementById('vAvisoDia').textContent = v ? 'Este dia já tinha lançamentos — estás a corrigi-los.' : '';
+  document.getElementById('vApagar').style.display = v && souMaster() ? '' : 'none';
+  document.getElementById('vErro').textContent = '';
+  vendaCalc();
+}
+async function vendaAbrir(data){
+  const d = data || hojeISO();
+  document.getElementById('vData').value = d;
+  vendaPreencher(vendasMes.find(v => v.data === d) || null);
+  abrirModal('modalVenda');
+  if(!data) await vendaTrocarData();
+}
+async function vendaTrocarData(){
+  // ao trocar a data, verifica se esse dia já tem lançamentos (como no sistema atual)
+  const d = document.getElementById('vData').value;
+  if(!d) return;
+  try{
+    const r = await apiGet(`fin_vendas_dia?select=*&data=eq.${d}`);
+    vendaPreencher(r[0] || null);
+  }catch(e){}
+}
+function vendaLer(){
+  const v = { data: document.getElementById('vData').value, observacoes: document.getElementById('vObs').value.trim() || null };
+  Object.entries(CAMPOS_VENDA).forEach(([k, id]) => v[k] = r2(num(document.getElementById(id).value)));
+  return v;
+}
+function vendaCalc(){
+  const c = calcVenda(vendaLer());
+  document.getElementById('vCalc').innerHTML =
+    `<span>Total A <b>${eur(c.totalA)}</b></span><span>Total B <b>${eur(c.totalB)}</b></span>` +
+    `<span>Diferença <b class="${Math.abs(c.dif) < 0.005 ? 'dif-ok' : 'dif-mal'}">${eur(c.dif)}</b></span><span>Faturamento <b>${eur(c.fat)}</b></span>`;
+}
+async function vendaGuardar(){
+  const v = vendaLer(), erro = document.getElementById('vErro');
+  erro.textContent = '';
+  if(!v.data){ erro.textContent = 'Escolhe o dia.'; return; }
+  try{
+    let linhas;
+    if(vendaEditando && vendaEditando.data === v.data){
+      linhas = await apiEscrever(`fin_vendas_dia?id=eq.${vendaEditando.id}`, 'PATCH', v);
+    }else{
+      linhas = await apiEscrever('fin_vendas_dia?on_conflict=data', 'POST', v, 'resolution=merge-duplicates,return=representation');
+    }
+    confirmarGravado(linhas, 'gravar isto');
+    fecharModal('modalVenda');
+    toast('Vendas de ' + dataCurta(v.data) + ' guardadas ✓');
+    mesAtual = v.data.slice(0, 7);
+    renderVendas();
+  }catch(e){ erro.textContent = 'Não guardei: ' + e.message; }
+}
+async function vendaApagar(){
+  if(!vendaEditando || !confirm('Apagar as vendas de ' + dataCurta(vendaEditando.data) + '? Não dá para desfazer.')) return;
+  try{
+    const linhas = await apiEscrever(`fin_vendas_dia?id=eq.${vendaEditando.id}`, 'DELETE');
+    confirmarGravado(linhas, 'apagar');
+    fecharModal('modalVenda'); toast('Dia apagado'); renderVendas();
+  }catch(e){ document.getElementById('vErro').textContent = 'Não apaguei: ' + e.message; }
+}
+
+// ===================================================================================
+//  COMPRAS — diário de compras e despesas
+// ===================================================================================
+let comprasMes = [], compraEditando = null;
+let filtroCompras = { base: 'data', forma: '', categoria: '', q: '' };
+
+async function renderCompras(){
+  const [ini, fim] = limitesMes(mesAtual);
+  const col = filtroCompras.base === 'pagamento' ? 'data_pagamento' : 'data';
+  comprasMes = await apiGet(`fin_compras?select=*&${col}=gte.${ini}&${col}=lt.${fim}&order=${col}.desc,id.desc`);
+  desenharCompras();
+}
+function desenharCompras(){
+  const f = filtroCompras, q = f.q.trim().toLowerCase();
+  const lista = comprasMes.filter(c =>
+    (!f.forma || (f.forma === '__sem' ? !c.forma_pagamento : c.forma_pagamento === f.forma)) &&
+    (!f.categoria || String(c.categoria_id) === f.categoria) &&
+    (!q || [c.fornecedor, c.descricao, c.numero_fatura, c.observacoes].some(x => (x || '').toLowerCase().includes(q))));
+  const total = lista.reduce((s, c) => s + num(c.valor), 0), iva = lista.reduce((s, c) => s + num(c.valor_iva), 0);
+  const porCat = {};
+  lista.forEach(c => { const k = nomeCategoriaCurta(c.categoria_id) || 'Sem categoria'; porCat[k] = (porCat[k] || 0) + num(c.valor); });
+  const cmv = lista.filter(c => c.categoria_id === 1).reduce((s, c) => s + num(c.valor), 0);
+  const formas = [...new Set([...LISTAS.formas.map(x => x.nome), ...comprasMes.map(c => c.forma_pagamento).filter(Boolean)])].sort();
+  const linhas = lista.map(c => `<tr>
+      <td class="e">${dataCurta(c.data)}</td>
+      <td class="e">${c.data_pagamento ? dataCurta(c.data_pagamento) : '<span class="nota">—</span>'}</td>
+      <td class="e txt"><b>${esc(c.fornecedor)}</b>${c.numero_fatura ? `<br><span class="nota">${esc(c.numero_fatura)}</span>` : ''}</td>
+      <td class="e txt">${esc(c.descricao)}</td>
+      <td class="e txt">${esc(nomeCategoriaCurta(c.categoria_id))}${c.subcategoria_id ? ` › ${esc(nomeSub(c.subcategoria_id))}` : ''}</td>
+      <td class="e">${esc(nomeCentro(c.centro_custo_id))}</td>
+      <td class="e">${c.forma_pagamento ? esc(c.forma_pagamento) : '<span class="nota">—</span>'}</td>
+      <td><b>${fmt(c.valor)}</b></td><td>${fmt(c.valor_iva)}</td>
+      <td class="acoes e"><button onclick="compraAbrir(${c.id})">editar</button></td>
+    </tr>`).join('');
+  document.getElementById('conteudo').innerHTML = `
+    <div class="barra">
+      ${seletorMes('renderCompras')}
+      <label class="field">Mês pela
+        <select onchange="filtroCompras.base=this.value;renderCompras()">
+          <option value="data" ${f.base === 'data' ? 'selected' : ''}>data da compra</option>
+          <option value="pagamento" ${f.base === 'pagamento' ? 'selected' : ''}>data do pagamento</option>
+        </select></label>
+      <label class="field">Forma
+        <select onchange="filtroCompras.forma=this.value;desenharCompras()">
+          <option value="">todas</option>${formas.map(x => `<option ${f.forma === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}
+          <option value="__sem" ${f.forma === '__sem' ? 'selected' : ''}>sem forma</option>
+        </select></label>
+      <label class="field">Categoria
+        <select onchange="filtroCompras.categoria=this.value;desenharCompras()">${opcoes(LISTAS.categorias, f.categoria, 'todas', true)}</select></label>
+      <label class="field">Procurar<input type="text" value="${esc(f.q)}" placeholder="fornecedor, descrição, fatura" oninput="filtroCompras.q=this.value;clearTimeout(window._tq);window._tq=setTimeout(()=>{desenharCompras();const i=document.querySelector('#conteudo input[type=text]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},300)"></label>
+      <div class="esp"></div>
+      <button class="btn" onclick="compraAbrir()">+ Nova compra</button>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="rot">Total — ${nomeMes(mesAtual)}</div><div class="val">${eur(total)}</div><div class="sub">${lista.length} lançamento(s)${lista.length !== comprasMes.length ? ' (filtrado)' : ''}</div></div>
+      <div class="kpi"><div class="rot">IVA nas compras</div><div class="val">${eur(iva)}</div><div class="sub">sem IVA: ${eur(total - iva)}</div></div>
+      <div class="kpi"><div class="rot">CMV (mercadoria)</div><div class="val">${eur(cmv)}</div><div class="sub">${total ? fmt(cmv / total * 100) : '0,00'}% das compras</div></div>
+    </div>
+    <div class="card" style="padding:12px 16px;">
+      <div class="nota" style="margin-bottom:6px;">Por categoria</div>
+      ${Object.entries(porCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span class="tag" style="margin:0 6px 6px 0;">${esc(k)}: <b>${fmt(v)}</b></span>`).join('') || '<span class="nota">—</span>'}
+    </div>
+    <div class="tabela-wrap">
+      <table class="t">
+        <thead><tr><th class="e">Compra</th><th class="e">Pagamento</th><th class="e">Fornecedor</th><th class="e">Descrição</th><th class="e">Categoria</th><th class="e">Área</th><th class="e">Forma</th><th>Valor</th><th>IVA</th><th></th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="10" class="vazio">Sem compras neste mês.</td></tr>'}</tbody>
+        ${lista.length ? `<tfoot><tr><td class="e" colspan="7">Totais</td><td>${eur(total)}</td><td>${fmt(iva)}</td><td></td></tr></tfoot>` : ''}
+      </table>
+    </div>`;
+}
+
+async function compraAbrir(id){
+  const c = id ? comprasMes.find(x => x.id === id) : null;
+  compraEditando = c;
+  // sugestões (fornecedores e pessoas já usados)
+  try{
+    const ant = await apiGet('fin_compras?select=fornecedor,quem_comprou,quem_pagou&order=id.desc&limit=600');
+    const uniq = a => [...new Set(a.filter(Boolean))].sort();
+    document.getElementById('listaFornecedores').innerHTML = uniq(ant.map(x => x.fornecedor)).map(x => `<option value="${esc(x)}">`).join('');
+    document.getElementById('listaPessoas').innerHTML = uniq(ant.flatMap(x => [x.quem_comprou, x.quem_pagou])).map(x => `<option value="${esc(x)}">`).join('');
+  }catch(e){}
+  const val = (idc, v) => document.getElementById(idc).value = v ?? '';
+  val('cData', c ? c.data : hojeISO()); val('cDataPag', c ? c.data_pagamento : '');
+  val('cFatura', c && c.numero_fatura); val('cFornecedor', c && c.fornecedor); val('cDescricao', c && c.descricao);
+  document.getElementById('cCategoria').innerHTML = opcoes(LISTAS.categorias, c ? c.categoria_id : '', '— categoria —');
+  compraTrocarCategoria(c ? c.subcategoria_id : '');
+  document.getElementById('cCentro').innerHTML = opcoes(LISTAS.centros, c ? c.centro_custo_id : '', '— área —');
+  const formaAtual = c ? c.forma_pagamento : '';
+  document.getElementById('cForma').innerHTML = '<option value="">— forma de pagamento —</option>' +
+    LISTAS.formas.filter(x => x.ativo || x.nome === formaAtual).map(x => `<option ${x.nome === formaAtual ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  val('cQuemComprou', c && c.quem_comprou); val('cQuemPagou', c && c.quem_pagou);
+  val('cValor', c ? num(c.valor) : ''); val('cIva', c ? num(c.valor_iva) : '');
+  document.getElementById('cIva').dataset.manual = c ? '1' : '';
+  val('cObs', c && c.observacoes);
+  document.getElementById('cTitulo').textContent = c ? 'Editar compra' : 'Nova compra';
+  document.getElementById('cApagar').style.display = c && souMaster() ? '' : 'none';
+  document.getElementById('cErro').textContent = '';
+  compraSugerirIva(true);
+  abrirModal('modalCompra');
+}
+function compraTrocarCategoria(subSel){
+  const cat = document.getElementById('cCategoria').value;
+  const subs = LISTAS.subcategorias.filter(s => !cat || String(s.categoria_id) === cat);
+  document.getElementById('cSubcategoria').innerHTML = opcoes(subs, subSel ?? '', '— subcategoria —');
+  compraSugerirIva();
+}
+// O IVA % da subcategoria sugere o IVA da compra (IVA contido no total); se o IVA foi escrito à mão, mantém-se.
+function compraSugerirIva(soDica){
+  const sub = LISTAS.subcategorias.find(s => String(s.id) === document.getElementById('cSubcategoria').value);
+  const p = sub ? num(sub.iva_percentual) : null, valor = num(document.getElementById('cValor').value);
+  const dica = document.getElementById('cIvaDica'), ivaEl = document.getElementById('cIva');
+  if(p === null){ dica.textContent = ''; return; }
+  const sugerido = r2(valor * p / (100 + p));
+  dica.textContent = `(${fmt(p)}% → ${fmt(sugerido)})`;
+  if(!soDica && !ivaEl.dataset.manual && valor) ivaEl.value = sugerido;
+}
+async function compraGuardar(){
+  const g = id => document.getElementById(id).value.trim();
+  const erro = document.getElementById('cErro');
+  erro.textContent = '';
+  const c = {
+    data: g('cData'), data_pagamento: g('cDataPag') || null, numero_fatura: g('cFatura') || null,
+    fornecedor: g('cFornecedor') || null, descricao: g('cDescricao') || null,
+    categoria_id: g('cCategoria') ? Number(g('cCategoria')) : null, subcategoria_id: g('cSubcategoria') ? Number(g('cSubcategoria')) : null,
+    centro_custo_id: g('cCentro') ? Number(g('cCentro')) : null, forma_pagamento: g('cForma') || null,
+    quem_comprou: g('cQuemComprou') || null, quem_pagou: g('cQuemPagou') || null,
+    valor: r2(num(g('cValor'))), valor_iva: r2(num(g('cIva'))), observacoes: g('cObs') || null
+  };
+  if(!c.data){ erro.textContent = 'Escreve a data da compra.'; return; }
+  if(!c.valor){ erro.textContent = 'Escreve o valor.'; return; }
+  if(!c.categoria_id){ erro.textContent = 'Escolhe a categoria.'; return; }
+  if(c.valor_iva > c.valor){ erro.textContent = 'O IVA não pode ser maior do que o valor total.'; return; }
+  try{
+    const linhas = compraEditando
+      ? await apiEscrever(`fin_compras?id=eq.${compraEditando.id}`, 'PATCH', c)
+      : await apiEscrever('fin_compras', 'POST', c);
+    confirmarGravado(linhas, 'gravar isto');
+    fecharModal('modalCompra');
+    toast(compraEditando ? 'Compra atualizada ✓' : 'Compra registada ✓');
+    renderCompras();
+  }catch(e){ erro.textContent = 'Não guardei: ' + e.message; }
+}
+async function compraApagar(){
+  if(!compraEditando || !confirm('Apagar esta compra? Não dá para desfazer.')) return;
+  try{
+    const linhas = await apiEscrever(`fin_compras?id=eq.${compraEditando.id}`, 'DELETE');
+    confirmarGravado(linhas, 'apagar');
+    fecharModal('modalCompra'); toast('Compra apagada'); renderCompras();
+  }catch(e){ document.getElementById('cErro').textContent = 'Não apaguei: ' + e.message; }
 }
 window.addEventListener('hashchange', () => { if(nivelAtual) irPara(lerVistaDoEndereco() || 'painel'); });
 
